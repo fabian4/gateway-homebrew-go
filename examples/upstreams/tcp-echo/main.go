@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"net"
 	"os"
@@ -12,8 +13,8 @@ import (
 )
 
 func main() {
-	addr := getEnv("TCP_ECHO_ADDR", ":9002")
-	idleSec := getEnvInt("TCP_ECHO_IDLE", 300) // idle timeout in seconds
+	addr := getenv("TCP_ECHO_ADDR", ":9002")
+	idleSec := getenvInt("TCP_ECHO_IDLE", 300) // idle timeout in seconds
 	greeting := os.Getenv("TCP_ECHO_GREETING")
 
 	ln, err := net.Listen("tcp", addr)
@@ -36,13 +37,20 @@ func main() {
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Temporary() {
-				log.Printf("accept temp err: %v", err)
-				time.Sleep(100 * time.Millisecond)
+			// listener closed -> exit loop
+			if errors.Is(err, net.ErrClosed) {
+				break
+			}
+			// timeout-like errors (rare on Accept unless deadlines are used)
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
+				log.Printf("accept timeout: %v", err)
 				continue
 			}
-			// most likely listener closed
-			break
+			// other transient errors: back off briefly and continue
+			log.Printf("accept error: %v (retrying)", err)
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 		wg.Add(1)
 		go handleConn(conn, time.Duration(idleSec)*time.Second, greeting, &wg)
@@ -54,12 +62,7 @@ func main() {
 
 func handleConn(c net.Conn, idle time.Duration, greeting string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer func(c net.Conn) {
-		err := c.Close()
-		if err != nil {
-
-		}
-	}(c)
+	defer c.Close()
 
 	remote := c.RemoteAddr().String()
 	log.Printf("conn %s opened", remote)
@@ -80,20 +83,19 @@ func handleConn(c net.Conn, idle time.Duration, greeting string, wg *sync.WaitGr
 			_ = c.SetDeadline(time.Now().Add(idle))
 		}
 		if err != nil {
-			// client closed / timeout / network error
 			return
 		}
 	}
 }
 
-func getEnv(k, def string) string {
+func getenv(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
 	}
 	return def
 }
 
-func getEnvInt(k string, def int) int {
+func getenvInt(k string, def int) int {
 	if v := os.Getenv(k); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i
