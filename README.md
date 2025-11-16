@@ -2,8 +2,11 @@
 > A homebrew L7/L4 gateway & reverse proxy in Go. Learn-by-building, docs-first.
 
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
-A self-learning project to build a readable, runnable, extendable Go gateway/reverse proxy. L7-first with essential L4 TCP passthrough.
+[![CI](https://github.com/fabian4/gateway-homebrew-go/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/fabian4/gateway-homebrew-go/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/fabian4/gateway-homebrew-go?sort=semver)](https://github.com/fabian4/gateway-homebrew-go/releases)
+[![GHCR](https://img.shields.io/badge/GHCR-ghcr.io%2Ffabian4%2Fgateway--homebrew--go-2ea44f?logo=github)](https://github.com/fabian4/gateway-homebrew-go/pkgs/container/gateway-homebrew-go)
+[![Go version](https://img.shields.io/github/go-mod/go-version/fabian4/gateway-homebrew-go)](https://pkg.go.dev/github.com/fabian4/gateway-homebrew-go)
+[![Go Reference](https://pkg.go.dev/badge/github.com/fabian4/gateway-homebrew-go)](https://pkg.go.dev/github.com/fabian4/gateway-homebrew-go)
 
 ---
 ## Roadmap
