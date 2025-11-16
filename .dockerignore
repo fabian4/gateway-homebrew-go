@@ -1,0 +1,10 @@
+.git
+.github
+docs
+examples
+deploy
+scripts
+*.md
+./cmd/config.yaml
+bin
+coverage.out

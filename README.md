@@ -9,7 +9,7 @@ A self-learning project to build a readable, runnable, extendable Go gateway/rev
 ## Roadmap
 
 ### v0.1.0 - Minimal L7
-- [x] [HTTP/1.1 reverse proxy](docs/routing-basics.md)
+- [x] [HTTP/1.1 reverse proxy](docs/routing-basics.md#http11-reverse-proxy)
 - [ ] [Host/Path-prefix routing](docs/routing-basics.md#routing)
 - [ ] [Static upstreams + Smooth WRR](docs/load-balancing.md#wrr)
 - [ ] [Basic timeouts (read/write/upstream)](docs/reliability-basics.md#timeouts)

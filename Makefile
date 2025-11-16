@@ -58,6 +58,32 @@ upstream-tcp-build:
 	@mkdir -p bin
 	go build -o bin/tcp-echo ./examples/upstreams/tcp-echo
 
+## docker-build: build local image (amd64) with VERSION tag
+docker-build:
+	docker build --build-arg VERSION=$(VERSION) --build-arg GOARCH=amd64 \
+		-t fabian4/gateway-homebrew-go:$(VERSION) .
+
+## docker-run: run container and mount config.yaml (host → container)
+docker-run: ## CONFIG?=/path/to/config.yaml (default: ./config.yaml)
+	@[ -f "$(CONFIG)" ] || (echo "CONFIG not found: $(CONFIG)"; exit 1)
+	docker run --rm -p 8080:8080 \
+		-v $(CONFIG):/etc/gateway/config.yaml:ro \
+		--name gateway-homebrew-go \
+		fabian4/gateway-homebrew-go:$(VERSION)
+
+## docker-buildx: multi-arch build (amd64, arm64)
+docker-buildx:
+	# requires: docker buildx create --use (once)
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
+		--build-arg VERSION=$(VERSION) \
+		-t fabian4/gateway-homebrew-go:$(VERSION) \
+		--push .
+
+## docker-push: push local tag to Docker Hub (single arch)
+docker-push:
+	docker push fabian4/gateway-homebrew-go:$(VERSION)
+
 ## help: show targets
 help:
 	@echo "Usage: make <target>"
