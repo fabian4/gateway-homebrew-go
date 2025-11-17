@@ -46,7 +46,7 @@ jobs:
           install-go: false
 
       - name: Unit tests (race + cover)
-        run: go test ./... -race -covermode=atomic -coverprofile=coverage.out ./internal/...
+        run: go test ./internal/... -race -covermode=atomic -coverprofile=coverage.out
 
       - name: Build binary
         run: |
