@@ -42,7 +42,7 @@ func TestGateway_RouteAndHeaders(t *testing.T) {
 	rt := router.New([]model.Route{
 		{Host: "app.example.com", Prefix: "/api", URL: upURL, Proto: "http1"},
 	})
-	gw := NewGateway(rt, fwd.NewRegistry())
+	gw := NewGateway(rt, fwd.NewDefaultRegistry())
 
 	req := httptest.NewRequest("GET", "http://gateway.local/api/v1/ping?x=1", nil)
 	req.Host = "app.example.com"
@@ -99,7 +99,7 @@ func TestGateway_PreserveIncomingHost(t *testing.T) {
 	rt := router.New([]model.Route{
 		{Host: "app.example.com", Prefix: "/", URL: upURL, Proto: "http1"},
 	})
-	gw := NewGateway(rt, fwd.NewRegistry())
+	gw := NewGateway(rt, fwd.NewDefaultRegistry())
 	gw.PreserveIncomingHost = true
 
 	req := httptest.NewRequest("GET", "http://gateway.local/", nil)
@@ -119,7 +119,7 @@ func TestGateway_NotFound(t *testing.T) {
 	rt := router.New([]model.Route{
 		{Host: "app.example.com", Prefix: "/api", URL: mustURL(t, "http://u1.local:9001"), Proto: "http1"},
 	})
-	gw := NewGateway(rt, fwd.NewRegistry())
+	gw := NewGateway(rt, fwd.NewDefaultRegistry())
 
 	req := httptest.NewRequest("GET", "http://gateway.local/other", nil)
 	req.Host = "other.example.com"
