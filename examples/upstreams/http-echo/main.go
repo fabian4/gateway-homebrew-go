@@ -11,10 +11,10 @@ import (
 )
 
 func main() {
-	addr := getenv("ECHO_ADDR", ":9001")
-	id := getenv("ECHO_ID", "u")
+	addr := getEnv("ECHO_ADDR", ":9001")
+	id := getEnv("ECHO_ID", "u")
 	greeting := os.Getenv("ECHO_GREETING")
-	latMs := getenvInt("ECHO_LATENCY_MS", 0)
+	latMs := getEnvInt("ECHO_LATENCY_MS", 0)
 
 	mux := http.NewServeMux()
 
@@ -87,13 +87,14 @@ func main() {
 	log.Fatal(srv.ListenAndServe())
 }
 
-func getenv(k, def string) string {
+func getEnv(k, def string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
 	}
 	return def
 }
-func getenvInt(k string, def int) int {
+
+func getEnvInt(k string, def int) int {
 	if v := os.Getenv(k); v != "" {
 		if i, err := strconv.Atoi(v); err == nil {
 			return i

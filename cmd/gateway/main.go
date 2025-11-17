@@ -27,7 +27,7 @@ func main() {
 	}
 
 	rt := router.New(c.Routes)
-	reg := fwd.NewRegistry()
+	reg := fwd.NewDefaultRegistry()
 	gw := handler.NewGateway(rt, reg)
 	// gw.PreserveIncomingHost = true
 
