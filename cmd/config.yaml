@@ -1,2 +1,10 @@
 listen: ":8080"
-upstream: "http://127.0.0.1:9001"
+routes:
+  - host: "app.example.com"
+    prefix: "/api"
+    upstream: "http://127.0.0.1:9001"
+    proto: "http1"   # http1 | auto | h2c (default: http1)
+  - host: ""
+    prefix: "/"
+    upstream: "http://127.0.0.1:9001"
+    proto: "http1"

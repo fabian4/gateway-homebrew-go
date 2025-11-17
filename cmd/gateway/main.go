@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"errors"
 	"flag"
 	"log"
 	"net/http"
@@ -12,7 +11,9 @@ import (
 	"time"
 
 	cfg "github.com/fabian4/gateway-homebrew-go/internal/config"
-	"github.com/fabian4/gateway-homebrew-go/internal/proxy"
+	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
+	"github.com/fabian4/gateway-homebrew-go/internal/handler"
+	"github.com/fabian4/gateway-homebrew-go/internal/router"
 	"github.com/fabian4/gateway-homebrew-go/internal/version"
 )
 
@@ -25,27 +26,28 @@ func main() {
 		log.Fatalf("config: %v", err)
 	}
 
-	h := proxy.NewHTTP1Proxy(c.Upstream)
+	rt := router.New(c.Routes)
+	reg := fwd.NewRegistry()
+	gw := handler.NewGateway(rt, reg)
+	// gw.PreserveIncomingHost = true
 
 	srv := &http.Server{
 		Addr:              c.Listen,
-		Handler:           h,
+		Handler:           gw,
 		ReadTimeout:       15 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
-	log.Printf("gateway-homebrew-go %s listening on %s → %s", version.Value, c.Listen, c.Upstream)
+	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d)", version.Value, c.Listen, len(c.Routes))
 
-	// start server
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("listen: %v", err)
 		}
 	}()
 
-	// graceful shutdown on SIGINT/SIGTERM
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	<-ctx.Done()
