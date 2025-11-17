@@ -1,0 +1,38 @@
+version: "3.9"
+services:
+  gateway:
+    image: ${IMAGE_CI}
+    container_name: e2e-gateway
+    ports:
+      - "18080:8080"
+    volumes:
+      - ../config/config.e2e.yaml:/etc/gateway/config.yaml:ro
+    depends_on:
+      - u1
+      - u2
+
+  u1:
+    build:
+      context: ../..
+      dockerfile: e2e/dockerfiles/echo.Dockerfile
+      args:
+        PKG: ./examples/upstreams/http-echo
+    container_name: e2e-u1
+    environment:
+      - ECHO_ADDR=:9001
+      - ECHO_ID=u1
+    expose:
+      - "9001"
+
+  u2:
+    build:
+      context: ../..
+      dockerfile: e2e/dockerfiles/echo.Dockerfile
+      args:
+        PKG: ./examples/upstreams/http-echo
+    container_name: e2e-u2
+    environment:
+      - ECHO_ADDR=:9002
+      - ECHO_ID=u2
+    expose:
+      - "9002"

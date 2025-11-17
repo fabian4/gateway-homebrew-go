@@ -1,0 +1,16 @@
+listen: ":8080"
+routes:
+  - host: "app.example.com"
+    prefix: "/api/v1"
+    upstream: "http://u2:9002"
+    proto: "http1"
+
+  - host: "app.example.com"
+    prefix: "/api"
+    upstream: "http://u1:9001"
+    proto: "http1"
+
+  - host: ""
+    prefix: "/"
+    upstream: "http://u1:9001"
+    proto: "http1"

@@ -1,15 +1,23 @@
-# mk/e2e.mk
-.PHONY: e2e-up e2e-test e2e-down
+# tools/e2e.mk
+SHELL := /bin/sh
+include ./common.mk
+
+COMPOSE := docker compose -f $(TOP)/e2e/compose/docker-compose.yml
+
+.PHONY: e2e-up e2e-test e2e-logs e2e-down e2e-reup
 
 e2e-up:
-	@echo "TODO: docker compose up (gateway + http-echo)"
+	$(COMPOSE) up -d --build
 
 e2e-test:
-	@echo "TODO: go test ./e2e/tests -v"
+	# Wait a bit before tests in case gateway still warming up
+	sleep 2
+	cd "$(TOP)" && $(GO) test ./e2e/tests -v -count=1
+
+e2e-logs:
+	$(COMPOSE) logs --no-color --tail=200
 
 e2e-down:
-	@echo "TODO: docker compose down -v"
+	$(COMPOSE) down -v
 
-HELP_LINES += "e2e:   e2e-up | e2e-test | e2e-down"
-HELP_LINES += "  e2e-up            - (TODO) compose up gateway + upstreams"
-HELP_LINES += "  e2e-test          - (TODO) end-to-end tests"
+e2e-reup: e2e-down e2e-up

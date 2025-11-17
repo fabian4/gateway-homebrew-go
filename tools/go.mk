@@ -1,29 +1,35 @@
-# mk/go.mk
-.PHONY: run build tidy fmt vet test clean
+# tools/go.mk
+SHELL := /bin/sh
+include ./common.mk
+
+.PHONY: run build tidy fmt vet test clean help
+.DEFAULT_GOAL := run
 
 run:
-	$(GO) run -ldflags "$(LDFLAGS)" $(PKG_MAIN) -config $(CONFIG)
+	cd "$(TOP)" && $(GO) run $(RUN_LDFLAGS) ./cmd/gateway $(RUN_CONFIG)
 
 build:
 	@$(MKDIR_BIN)
-	$(GO) build -ldflags "$(LDFLAGS)" -o bin/$(BIN) $(PKG_MAIN)
+	cd "$(TOP)" && $(GO) build $(if $(strip $(GO_LDFLAGS)),-ldflags '$(GO_LDFLAGS)',) \
+		-o "$(BIN_DIR)/$(BIN)" ./cmd/gateway
 
 tidy:
-	$(GO) mod tidy
+	cd "$(TOP)" && $(GO) mod tidy
 
 fmt:
-	$(GO) fmt ./...
+	cd "$(TOP)" && $(GO) fmt ./...
 
 vet:
-	$(GO) vet ./...
+	cd "$(TOP)" && $(GO) vet ./...
 
 test:
-	$(GO) test ./...
+	cd "$(TOP)" && $(GO) test ./...
 
 clean:
 	@$(RM_BIN)
 
-HELP_LINES += "go:    run | build | tidy | fmt | vet | test | clean"
-HELP_LINES += "  run                - run gateway with CONFIG (default: ./config.yaml)"
-HELP_LINES += "  build              - build ./bin/$(BIN)"
-HELP_LINES += "  test               - go test ./..."
+help:
+	@echo "Targets:"
+	@echo "  run       - go run ./cmd/gateway -config $(CONFIG)"
+	@echo "  build     - build $(BIN_DIR)/$(BIN)"
+	@echo "  tidy|fmt|vet|test|clean"

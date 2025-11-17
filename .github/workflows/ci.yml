@@ -13,9 +13,11 @@ concurrency:
 
 env:
   MODULE: github.com/fabian4/gateway-homebrew-go
+  IMAGE_CI: ghcr.io/${{ github.repository }}:ci-${{ github.sha }}
+  GO_VERSION: 1.24.4
 
 jobs:
-  build-test:
+  unit:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -26,7 +28,7 @@ jobs:
       - name: Setup Go (from go.mod/toolchain)
         uses: actions/setup-go@v5
         with:
-          go-version-file: 'go.mod'
+          go-version-file: go.mod
           cache: true
 
       - name: Verify go.mod is tidy
@@ -40,12 +42,11 @@ jobs:
       - name: Staticcheck
         uses: dominikh/staticcheck-action@v1.3.1
         with:
-          version: "latest"
+          version: latest
           install-go: false
 
       - name: Unit tests (race + cover)
-        run: |
-          go test ./... -race -covermode=atomic -coverprofile=coverage.out
+        run: go test ./... -race -covermode=atomic -coverprofile=coverage.out
 
       - name: Build binary
         run: |
@@ -58,34 +59,125 @@ jobs:
       - name: Upload artifacts (binary + coverage)
         uses: actions/upload-artifact@v4
         with:
-          name: build-linux-amd64
+          name: unit-artifacts
           path: |
             bin/gateway
             coverage.out
           if-no-files-found: error
 
-  docker-build:
+  image:
     runs-on: ubuntu-latest
-    needs: build-test
+    needs: unit
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Docker Buildx
+      - name: Setup Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker build (no push)
+      # Single-arch build (amd64) and load into local daemon
+      - name: Build CI image (single-arch) and load
         uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
           push: false
-          load: false
+          load: true
           platforms: linux/amd64
           build-args: |
-            GO_VERSION=1.24.4
-            VERSION=${{ github.ref_name }}
+            GO_VERSION=${{ env.GO_VERSION }}
+            VERSION=${{ github.sha }}
+          tags: |
+            ${{ env.IMAGE_CI }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Save image as artifact
+        run: |
+          docker save "${IMAGE_CI}" -o gateway-image.tar
+        env:
+          IMAGE_CI: ${{ env.IMAGE_CI }}
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gateway-image
+          path: gateway-image.tar
+          if-no-files-found: error
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: image
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go (for e2e test runner)
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download CI image
+        uses: actions/download-artifact@v4
+        with:
+          name: gateway-image
+          path: .
+
+      - name: Load CI image
+        run: docker load -i gateway-image.tar
+
+      - name: Compose up (use CI image tag)
+        run: |
+          docker compose \
+            -f e2e/compose/docker-compose.yml \
+            -f e2e/compose/docker-compose.ci.yml \
+            up -d --build
+        env:
+          IMAGE_CI: ${{ env.IMAGE_CI }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+
+      - name: Wait for gateway readiness
+        run: |
+          for i in {1..60}; do
+            if curl -fsS --resolve any.local:18080:127.0.0.1 http://any.local:18080/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 0.5
+          done
+          echo "::error ::gateway not ready"
+          docker compose -f e2e/compose/docker-compose.yml -f e2e/compose/docker-compose.ci.yml logs --no-color || true
+          exit 1
+        env:
+          IMAGE_CI: ${{ env.IMAGE_CI }}
+
+      - name: Run E2E tests
+        run: go test ./e2e/tests -v -count=1
+
+      - name: Dump compose logs
+        if: always()
+        run: |
+          docker compose \
+            -f e2e/compose/docker-compose.yml \
+            -f e2e/compose/docker-compose.ci.yml \
+            logs --no-color > e2e-compose-logs.txt || true
+
+      - name: Upload compose logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-compose-logs
+          path: e2e-compose-logs.txt
+
+      - name: Compose down
+        if: always()
+        run: |
+          docker compose \
+            -f e2e/compose/docker-compose.yml \
+            -f e2e/compose/docker-compose.ci.yml \
+            down -v
