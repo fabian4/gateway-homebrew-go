@@ -134,8 +134,8 @@ jobs:
       - name: Compose up (use CI image tag)
         run: |
           docker compose \
-            -f e2e/compose/docker-compose.yml \
-            -f e2e/compose/docker-compose.ci.yml \
+            -f test/compose/docker-compose.yml \
+            -f test/compose/docker-compose.ci.yml \
             up -d --build
         env:
           IMAGE_CI: ${{ env.IMAGE_CI }}
@@ -151,20 +151,20 @@ jobs:
             sleep 0.5
           done
           echo "::error ::gateway not ready"
-          docker compose -f e2e/compose/docker-compose.yml -f e2e/compose/docker-compose.ci.yml logs --no-color || true
+          docker compose -f test/compose/docker-compose.yml -f test/compose/docker-compose.ci.yml logs --no-color || true
           exit 1
         env:
           IMAGE_CI: ${{ env.IMAGE_CI }}
 
       - name: Run E2E tests
-        run: go test ./e2e/tests -v -count=1
+        run: go test ./test/*_test.go -v -count=1
 
       - name: Dump compose logs
         if: always()
         run: |
           docker compose \
-            -f e2e/compose/docker-compose.yml \
-            -f e2e/compose/docker-compose.ci.yml \
+            -f test/compose/docker-compose.yml \
+            -f test/compose/docker-compose.ci.yml \
             logs --no-color > e2e-compose-logs.txt || true
 
       - name: Upload compose logs
@@ -178,6 +178,6 @@ jobs:
         if: always()
         run: |
           docker compose \
-            -f e2e/compose/docker-compose.yml \
-            -f e2e/compose/docker-compose.ci.yml \
+            -f test/compose/docker-compose.yml \
+            -f test/compose/docker-compose.ci.yml \
             down -v
