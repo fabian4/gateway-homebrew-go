@@ -1,0 +1,113 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func writeTmp(t *testing.T, content string) string {
+	t.Helper()
+	dir := t.TempDir()
+	fp := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(fp, []byte(content), 0o644); err != nil {
+		t.Fatalf("write temp file: %v", err)
+	}
+	return fp
+}
+
+func TestLoad_V1_Minimal(t *testing.T) {
+	yml := `
+            entrypoint:
+              - name: web
+                address: ":8080"
+            
+            services:
+              - name: service-1
+                proto: http1
+                endpoints:
+                  - "http://127.0.0.1:9001"
+            
+            routes:
+              - name: route-1
+                match:
+                  hosts: ["App.Example.COM"]
+                  path_prefix: "/api"
+                service: service-1
+            `
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if got, want := cfg.Listen, ":8080"; got != want {
+		t.Fatalf("listen: got %q, want %q", got, want)
+	}
+	if len(cfg.Services) != 1 {
+		t.Fatalf("services len: got %d, want 1", len(cfg.Services))
+	}
+	svc, ok := cfg.Services["service-1"]
+	if !ok {
+		t.Fatalf("service service-1 not found")
+	}
+	if got, want := svc.Proto, "http1"; got != want {
+		t.Fatalf("service proto: got %q, want %q", got, want)
+	}
+	if len(svc.Endpoints) != 1 || svc.Endpoints[0].Host != "127.0.0.1:9001" {
+		t.Fatalf("endpoints parsed unexpected: %+v", svc.Endpoints)
+	}
+	if len(cfg.Routes) != 1 {
+		t.Fatalf("routes len: got %d, want 1", len(cfg.Routes))
+	}
+	rt := cfg.Routes[0]
+	if got, want := rt.Name, "route-1"; got != want {
+		t.Fatalf("route name: got %q, want %q", got, want)
+	}
+	if got, want := rt.PathPrefix, "/api"; got != want {
+		t.Fatalf("route prefix: got %q, want %q", got, want)
+	}
+	if got, want := rt.Service, "service-1"; got != want {
+		t.Fatalf("route service: got %q, want %q", got, want)
+	}
+	// host should be normalized to lower-case by loader
+	if len(rt.Hosts) != 1 || rt.Hosts[0] != "app.example.com" {
+		t.Fatalf("hosts normalized unexpected: %+v", rt.Hosts)
+	}
+}
+
+func TestLoad_Errors(t *testing.T) {
+	// missing service reference
+	yml := `
+entrypoint: [{name: web, address: ":8080"}]
+services:
+  - name: s1
+    proto: http1
+    endpoints: ["http://127.0.0.1:9001"]
+routes:
+  - name: r1
+    match: { path_prefix: "/api" }
+    service: s2
+`
+	fp := writeTmp(t, yml)
+	if _, err := Load(fp); err == nil {
+		t.Fatalf("want error for missing service reference")
+	}
+
+	// bad prefix
+	yml2 := `
+entrypoint: [{name: web, address: ":8080"}]
+services:
+  - name: s1
+    proto: http1
+    endpoints: ["http://127.0.0.1:9001"]
+routes:
+  - name: r1
+    match: { path_prefix: "api" }
+    service: s1
+`
+	fp2 := writeTmp(t, yml2)
+	if _, err := Load(fp2); err == nil {
+		t.Fatalf("want error for path_prefix without leading slash")
+	}
+}

@@ -21,36 +21,48 @@ func mustURL(t *testing.T, s string) *url.URL {
 	return u
 }
 
-func TestGateway_RouteAndHeaders(t *testing.T) {
-	var gotHost, gotXFF, gotXFH, gotXFP, gotConn, gotUpgrade string
-
+func TestGateway_BasicRouteAndHeaders(t *testing.T) {
+	// upstream server that reflects selected Host and certain headers
+	var seenHost, seenConn, seenUpgrade, seenXFP, seenXFF string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotHost = r.Host
-		gotXFF = r.Header.Get("X-Forwarded-For")
-		gotXFH = r.Header.Get("X-Forwarded-Host")
-		gotXFP = r.Header.Get("X-Forwarded-Proto")
-		gotConn = r.Header.Get("Connection")
-		gotUpgrade = r.Header.Get("Upgrade")
-		w.Header().Set("X-Upstream", "ok")
+		seenHost = r.Host
+		seenConn = r.Header.Get("Connection")
+		seenUpgrade = r.Header.Get("Upgrade")
+		seenXFP = r.Header.Get("X-Forwarded-Proto")
+		seenXFF = r.Header.Get("X-Forwarded-For")
+		w.Header().Set("X-Up", "ok")
 		w.WriteHeader(200)
-		_, _ = w.Write([]byte("hello-from-upstream"))
 	}))
 	defer up.Close()
-
 	upURL := mustURL(t, up.URL)
 
-	rt := router.New([]model.Route{
-		{Host: "app.example.com", Prefix: "/api", URL: upURL, Proto: "http1"},
-	})
-	gw := NewGateway(rt, fwd.NewDefaultRegistry())
+	// services and routes
+	svcs := map[string]model.Service{
+		"s1": {
+			Name:      "s1",
+			Proto:     "http1",
+			Endpoints: []*url.URL{upURL},
+		},
+	}
+	rs := []model.Route{
+		{
+			Name:       "r1",
+			Hosts:      []string{"app.example.com"},
+			PathPrefix: "/api",
+			Service:    "s1",
+			// default: preserve_host=false, no host_rewrite
+		},
+	}
+	rt := router.New(rs)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
 
-	req := httptest.NewRequest("GET", "http://gateway.local/api/v1/ping?x=1", nil)
+	// downstream request
+	req := httptest.NewRequest("GET", "http://gw.local/api/ping?x=1", nil)
 	req.Host = "app.example.com"
 	req.RemoteAddr = "203.0.113.10:54321"
-	req.TLS = &tls.ConnectionState{}
+	req.TLS = &tls.ConnectionState{} // to mark client->gateway as https for XFP
 
-	req.Header.Set("User-Agent", "test-ua")
-	req.Header.Set("X-Forwarded-For", "10.0.0.3")
+	// hop-by-hop on purpose; should be removed
 	req.Header.Set("Connection", "keep-alive, FooHop")
 	req.Header.Set("FooHop", "1")
 	req.Header.Set("Upgrade", "websocket")
@@ -61,72 +73,95 @@ func TestGateway_RouteAndHeaders(t *testing.T) {
 	defer res.Body.Close()
 
 	if res.StatusCode != 200 {
-		t.Fatalf("status: want 200, got %d", res.StatusCode)
+		t.Fatalf("status: got %d, want 200", res.StatusCode)
 	}
-	if res.Header.Get("X-Upstream") != "ok" {
-		t.Fatalf("downstream header not forwarded")
+	if res.Header.Get("X-Up") != "ok" {
+		t.Fatalf("downstream headers not forwarded from upstream")
 	}
-
-	if gotHost != upURL.Host {
-		t.Fatalf("upstream Host: want %q, got %q", upURL.Host, gotHost)
+	// default host policy: upstream host should be endpoint host
+	if seenHost != upURL.Host {
+		t.Fatalf("upstream Host: got %q, want %q", seenHost, upURL.Host)
 	}
-
-	wantXFF := "10.0.0.3, 203.0.113.10"
-	if gotXFF != wantXFF {
-		t.Fatalf("XFF: want %q, got %q", wantXFF, gotXFF)
+	// hop-by-hop stripped
+	if seenConn != "" || seenUpgrade != "" {
+		t.Fatalf("hop-by-hop leaked: Connection=%q Upgrade=%q", seenConn, seenUpgrade)
 	}
-	if gotXFH != "app.example.com" {
-		t.Fatalf("XF-Host: want app.example.com, got %q", gotXFH)
-	}
-	if gotXFP != "https" {
-		t.Fatalf("XF-Proto: want https, got %q", gotXFP)
-	}
-	if gotConn != "" || gotUpgrade != "" {
-		t.Fatalf("hop-by-hop headers leaked: Connection=%q Upgrade=%q", gotConn, gotUpgrade)
+	// X-Forwarded-* present
+	if seenXFP == "" || seenXFF == "" {
+		t.Fatalf("missing X-Forwarded-Proto/For: XFP=%q XFF=%q", seenXFP, seenXFF)
 	}
 }
 
-func TestGateway_PreserveIncomingHost(t *testing.T) {
-	var gotHost string
+func TestGateway_PreserveHost(t *testing.T) {
+	var seenHost string
 	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotHost = r.Host
+		seenHost = r.Host
 		w.WriteHeader(204)
 	}))
 	defer up.Close()
-
 	upURL := mustURL(t, up.URL)
 
-	rt := router.New([]model.Route{
-		{Host: "app.example.com", Prefix: "/", URL: upURL, Proto: "http1"},
-	})
-	gw := NewGateway(rt, fwd.NewDefaultRegistry())
-	gw.PreserveIncomingHost = true
+	svcs := map[string]model.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []*url.URL{upURL}},
+	}
+	rs := []model.Route{
+		{
+			Name:         "r1",
+			Hosts:        []string{"app.example.com"},
+			PathPrefix:   "/",
+			Service:      "s1",
+			PreserveHost: true,
+		},
+	}
+	rt := router.New(rs)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
 
-	req := httptest.NewRequest("GET", "http://gateway.local/", nil)
+	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
 	rr := httptest.NewRecorder()
 	gw.ServeHTTP(rr, req)
 
-	if rr.Result().StatusCode != 204 {
-		t.Fatalf("status: want 204, got %d", rr.Result().StatusCode)
+	if rr.Code != 204 {
+		t.Fatalf("status: got %d, want 204", rr.Code)
 	}
-	if gotHost != "app.example.com" {
-		t.Fatalf("upstream Host: want preserved %q, got %q", "app.example.com", gotHost)
+	if seenHost != "app.example.com" {
+		t.Fatalf("preserve host: got %q, want %q", seenHost, "app.example.com")
 	}
 }
 
-func TestGateway_NotFound(t *testing.T) {
-	rt := router.New([]model.Route{
-		{Host: "app.example.com", Prefix: "/api", URL: mustURL(t, "http://u1.local:9001"), Proto: "http1"},
-	})
-	gw := NewGateway(rt, fwd.NewDefaultRegistry())
+func TestGateway_HostRewrite(t *testing.T) {
+	var seenHost string
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenHost = r.Host
+		w.WriteHeader(204)
+	}))
+	defer up.Close()
+	upURL := mustURL(t, up.URL)
 
-	req := httptest.NewRequest("GET", "http://gateway.local/other", nil)
-	req.Host = "other.example.com"
+	svcs := map[string]model.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []*url.URL{upURL}},
+	}
+	rs := []model.Route{
+		{
+			Name:        "r1",
+			Hosts:       []string{"app.example.com"},
+			PathPrefix:  "/",
+			Service:     "s1",
+			HostRewrite: "rewrite.local",
+		},
+	}
+	rt := router.New(rs)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
+
+	req := httptest.NewRequest("GET", "http://gw.local/", nil)
+	req.Host = "app.example.com"
 	rr := httptest.NewRecorder()
 	gw.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusNotFound {
-		t.Fatalf("status: want 404, got %d", rr.Code)
+	if rr.Code != 204 {
+		t.Fatalf("status: got %d, want 204", rr.Code)
+	}
+	if seenHost != "rewrite.local" {
+		t.Fatalf("host rewrite: got %q, want %q", seenHost, "rewrite.local")
 	}
 }

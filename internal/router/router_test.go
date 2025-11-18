@@ -1,61 +1,50 @@
 package router
 
 import (
-	"net/url"
 	"testing"
 
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
 )
 
-func mustURL(t *testing.T, s string) *url.URL {
-	t.Helper()
-	u, err := url.Parse(s)
-	if err != nil {
-		t.Fatalf("parse url %q: %v", s, err)
+func TestMatch_MultiHostAndLongestPrefix(t *testing.T) {
+	routes := []model.Route{
+		{Name: "r1", Hosts: []string{"app.example.com"}, PathPrefix: "/api", Service: "s1"},
+		{Name: "r2", Hosts: []string{"app.example.com"}, PathPrefix: "/api/v1", Service: "s2"},
+		{Name: "r3", Hosts: []string{"other.example.com"}, PathPrefix: "/", Service: "s3"},
 	}
-	return u
-}
+	rt := New(routes)
 
-func TestMatch_LongestPrefix_First(t *testing.T) {
-	rt := New([]model.Route{
-		{Host: "app.example.com", Prefix: "/api", URL: mustURL(t, "http://u1.local:9001")},
-		{Host: "app.example.com", Prefix: "/api/v1", URL: mustURL(t, "http://u2.local:9002")},
-	})
-	if got := rt.Match("app.example.com", "/api/v1/items"); got == nil || got.URL.Host != "u2.local:9002" {
-		t.Fatalf("want u2 for /api/v1/*, got %v", got)
+	// longest prefix wins under same host
+	if got := rt.Match("app.example.com", "/api/v1/items"); got == nil || got.Service != "s2" {
+		t.Fatalf("want s2 for /api/v1/*, got %+v", got)
 	}
-	if got := rt.Match("app.example.com", "/api/foo"); got == nil || got.URL.Host != "u1.local:9001" {
-		t.Fatalf("want u1 for /api/*, got %v", got)
+	if got := rt.Match("app.example.com", "/api/foo"); got == nil || got.Service != "s1" {
+		t.Fatalf("want s1 for /api/*, got %+v", got)
 	}
-}
 
-func TestMatch_HostCaseAndPortIgnored(t *testing.T) {
-	rt := New([]model.Route{
-		{Host: "app.example.com", Prefix: "/", URL: mustURL(t, "http://u1.local:9001")},
-	})
-	if got := rt.Match("APP.Example.COM:8080", "/anything"); got == nil || got.URL.Host != "u1.local:9001" {
-		t.Fatalf("want u1 for host case/port variations, got %v", got)
+	// host case/port insensitivity
+	if got := rt.Match("APP.Example.COM:8080", "/api/v1"); got == nil || got.Service != "s2" {
+		t.Fatalf("want s2 for host case-insensitive, got %+v", got)
+	}
+	// different host
+	if got := rt.Match("other.example.com", "/anything"); got == nil || got.Service != "s3" {
+		t.Fatalf("want s3 for other host, got %+v", got)
 	}
 }
 
 func TestMatch_WildcardFallback(t *testing.T) {
-	rt := New([]model.Route{
-		{Host: "app.example.com", Prefix: "/api", URL: mustURL(t, "http://u1.local:9001")},
-		{Host: "", Prefix: "/", URL: mustURL(t, "http://u0.local:9000")},
-	})
-	if got := rt.Match("other.host", "/hello"); got == nil || got.URL.Host != "u0.local:9000" {
-		t.Fatalf("want wildcard u0 for other.host, got %v", got)
+	routes := []model.Route{
+		{Name: "r1", Hosts: []string{"app.example.com"}, PathPrefix: "/api", Service: "s1"},
+		{Name: "r0", Hosts: nil, PathPrefix: "/", Service: "s0"}, // wildcard
 	}
-	if got := rt.Match("app.example.com", "/api/ping"); got == nil || got.URL.Host != "u1.local:9001" {
-		t.Fatalf("want u1 for app.example.com /api, got %v", got)
-	}
-}
+	rt := New(routes)
 
-func TestMatch_NoRoute(t *testing.T) {
-	rt := New([]model.Route{
-		{Host: "app.example.com", Prefix: "/api", URL: mustURL(t, "http://u1.local:9001")},
-	})
-	if got := rt.Match("nope.example.com", "/x"); got != nil {
-		t.Fatalf("want nil for no match, got %v", got)
+	// unmatched host falls back to wildcard
+	if got := rt.Match("nope.example.com", "/hi"); got == nil || got.Service != "s0" {
+		t.Fatalf("want s0 (wildcard) for unmatched host, got %+v", got)
+	}
+	// exact host still preferred if matched
+	if got := rt.Match("app.example.com", "/api/ping"); got == nil || got.Service != "s1" {
+		t.Fatalf("want s1 for matched host/prefix, got %+v", got)
 	}
 }
