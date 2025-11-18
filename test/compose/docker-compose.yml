@@ -1,4 +1,3 @@
-version: "3.9"
 services:
   gateway:
     image: ghcr.io/fabian4/gateway-homebrew-go:latest
@@ -14,7 +13,7 @@ services:
   u1:
     build:
       context: ../..
-      dockerfile: e2e/dockerfiles/echo.Dockerfile
+      dockerfile: test/dockerfiles/echo.Dockerfile
       args:
         PKG: ./examples/upstreams/http-echo
     container_name: e2e-u1
@@ -27,7 +26,7 @@ services:
   u2:
     build:
       context: ../..
-      dockerfile: e2e/dockerfiles/echo.Dockerfile
+      dockerfile: test/dockerfiles/echo.Dockerfile
       args:
         PKG: ./examples/upstreams/http-echo
     container_name: e2e-u2

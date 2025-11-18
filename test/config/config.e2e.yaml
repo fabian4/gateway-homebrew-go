@@ -1,16 +1,32 @@
-listen: ":8080"
+entrypoint:
+  - name: web
+    address: ":8080"
+
+services:
+  - name: u1
+    proto: http1
+    endpoints:
+      - "http://u1:9001"
+  - name: u2
+    proto: http1
+    endpoints:
+      - "http://u2:9002"
+
 routes:
-  - host: "app.example.com"
-    prefix: "/api/v1"
-    upstream: "http://u2:9002"
-    proto: "http1"
+  - name: r-v1
+    match:
+      hosts: ["app.example.com"]
+      path_prefix: "/api/v1"
+    service: u2
 
-  - host: "app.example.com"
-    prefix: "/api"
-    upstream: "http://u1:9001"
-    proto: "http1"
+  - name: r-api
+    match:
+      hosts: ["app.example.com"]
+      path_prefix: "/api"
+    service: u1
 
-  - host: ""
-    prefix: "/"
-    upstream: "http://u1:9001"
-    proto: "http1"
+  # wildcard → u1, so /healthz works for any Host
+  - name: r-any
+    match:
+      path_prefix: "/"
+    service: u1
