@@ -8,43 +8,45 @@ import (
 )
 
 type Table struct {
-	byHost map[string][]model.Route // exact host -> sorted by prefix length desc
-	any    []model.Route            // wildcard host -> sorted by prefix length desc
+	byHost map[string][]model.Route // exact host -> routes sorted by prefix desc
+	any    []model.Route            // wildcard routes -> prefix desc
 }
 
 func New(routes []model.Route) *Table {
 	t := &Table{byHost: make(map[string][]model.Route)}
 	for _, r := range routes {
-		if r.Host == "" {
+		if len(r.Hosts) == 0 {
 			t.any = append(t.any, r)
-		} else {
-			t.byHost[r.Host] = append(t.byHost[r.Host], r)
+			continue
+		}
+		for _, h := range r.Hosts {
+			h = strings.ToLower(h)
+			t.byHost[h] = append(t.byHost[h], r)
 		}
 	}
 	for h := range t.byHost {
 		sort.SliceStable(t.byHost[h], func(i, j int) bool {
-			return len(t.byHost[h][i].Prefix) > len(t.byHost[h][j].Prefix)
+			return len(t.byHost[h][i].PathPrefix) > len(t.byHost[h][j].PathPrefix)
 		})
 	}
 	sort.SliceStable(t.any, func(i, j int) bool {
-		return len(t.any[i].Prefix) > len(t.any[j].Prefix)
+		return len(t.any[i].PathPrefix) > len(t.any[j].PathPrefix)
 	})
 	return t
 }
 
-// Match returns the matched route (not a copy), or nil if no match.
 func (t *Table) Match(host, path string) *model.Route {
 	h := strings.ToLower(hostOnly(host))
-	if r := matchPrefixes(t.byHost[h], path); r != nil {
+	if r := match(t.byHost[h], path); r != nil {
 		return r
 	}
-	return matchPrefixes(t.any, path)
+	return match(t.any, path)
 }
 
-func matchPrefixes(routes []model.Route, path string) *model.Route {
-	for i := range routes {
-		if strings.HasPrefix(path, routes[i].Prefix) {
-			return &routes[i]
+func match(rs []model.Route, path string) *model.Route {
+	for i := range rs {
+		if strings.HasPrefix(path, rs[i].PathPrefix) {
+			return &rs[i]
 		}
 	}
 	return nil

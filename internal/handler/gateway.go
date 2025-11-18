@@ -10,17 +10,18 @@ import (
 	"strings"
 
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
+	"github.com/fabian4/gateway-homebrew-go/internal/model"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 )
 
 type Gateway struct {
-	Routes               *router.Table
-	Transports           fwd.Factory
-	PreserveIncomingHost bool
+	Routes     *router.Table
+	Services   map[string]model.Service
+	Transports fwd.Factory
 }
 
-func NewGateway(rt *router.Table, f fwd.Factory) *Gateway {
-	return &Gateway{Routes: rt, Transports: f}
+func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory) *Gateway {
+	return &Gateway{Routes: rt, Services: svcs, Transports: f}
 }
 
 var _ http.Handler = (*Gateway)(nil)
@@ -31,17 +32,21 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	tr := g.Transports.Get(route.Proto)
+	svc, ok := g.Services[route.Service]
+	if !ok || len(svc.Endpoints) == 0 {
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
+	// minimal choice: first endpoint (TODO: plug LB)
+	base := svc.Endpoints[0]
+	tr := g.Transports.Get(svc.Proto)
 
-	// Build upstream URL
-	up := route.URL
+	// upstream URL = base + path
 	u := new(url.URL)
-	*u = *up
-	u.Path = joinSlash(up.Path, r.URL.Path)
+	*u = *base
+	u.Path = joinSlash(base.Path, r.URL.Path)
 	u.RawQuery = r.URL.RawQuery
-	u.Fragment = ""
 
-	// Prepare headers
 	hdr := cloneHeader(r.Header)
 	dropHopByHop(hdr)
 	addXFF(hdr, r.RemoteAddr)
@@ -54,10 +59,15 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reqUp.Header = hdr
-	if g.PreserveIncomingHost {
+
+	// Host policy
+	switch {
+	case route.HostRewrite != "":
+		reqUp.Host = route.HostRewrite
+	case route.PreserveHost:
 		reqUp.Host = r.Host
-	} else {
-		reqUp.Host = up.Host
+	default:
+		reqUp.Host = base.Host
 	}
 
 	resUp, err := tr.RoundTrip(reqUp)
@@ -66,7 +76,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
-	defer resUp.Body.Close()
+	defer func(Body io.ReadCloser) {
+		err := Body.Close()
+		if err != nil {
+
+		}
+	}(resUp.Body)
 
 	dropHopByHop(resUp.Header)
 	copyHeaders(w.Header(), resUp.Header)

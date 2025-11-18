@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	configPath := flag.String("config", "config.yaml", "path to YAML config")
+	configPath := flag.String("config", "./cmd/config.yaml", "path to YAML config")
 	flag.Parse()
 
 	c, err := cfg.Load(*configPath)
@@ -28,8 +28,7 @@ func main() {
 
 	rt := router.New(c.Routes)
 	reg := fwd.NewDefaultRegistry()
-	gw := handler.NewGateway(rt, reg)
-	// gw.PreserveIncomingHost = true
+	gw := handler.NewGateway(rt, c.Services, reg)
 
 	srv := &http.Server{
 		Addr:              c.Listen,
@@ -39,8 +38,8 @@ func main() {
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
-
-	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d)", version.Value, c.Listen, len(c.Routes))
+	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d services=%d)",
+		version.Value, c.Listen, len(c.Routes), len(c.Services))
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -54,8 +53,5 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("graceful shutdown error: %v", err)
-	}
-	log.Println("bye.")
+	_ = srv.Shutdown(shutdownCtx)
 }

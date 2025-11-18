@@ -1,10 +1,16 @@
-listen: ":8080"
+entrypoint:
+  - name: web
+    address: ":8080"
+
+services:
+  - name: service-1
+    proto: http1
+    endpoints:
+      - "http://127.0.0.1:9001"
+
 routes:
-  - host: "app.example.com"
-    prefix: "/api"
-    upstream: "http://127.0.0.1:9001"
-    proto: "http1"   # http1 | auto | h2c (default: http1)
-  - host: ""
-    prefix: "/"
-    upstream: "http://127.0.0.1:9001"
-    proto: "http1"
+  - name: route-1
+    match:
+      hosts: ["app.example.com"]
+      path_prefix: "/api"
+    service: service-1
