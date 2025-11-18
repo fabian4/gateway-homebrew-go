@@ -13,7 +13,7 @@ services:
   u1:
     build:
       context: ../..
-      dockerfile: test/dockerfiles/echo.Dockerfile
+      dockerfile: test/dockerfile/echo.Dockerfile
       args:
         PKG: ./examples/upstreams/http-echo
     container_name: e2e-u1
@@ -26,7 +26,7 @@ services:
   u2:
     build:
       context: ../..
-      dockerfile: test/dockerfiles/echo.Dockerfile
+      dockerfile: test/dockerfile/echo.Dockerfile
       args:
         PKG: ./examples/upstreams/http-echo
     container_name: e2e-u2

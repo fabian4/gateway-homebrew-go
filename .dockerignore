@@ -1,7 +1,6 @@
 .git
 .github
 docs
-examples
 deploy
 scripts
 *.md
