@@ -131,16 +131,17 @@ jobs:
       - name: Load CI image
         run: docker load -i gateway-image.tar
 
-      - name: Compose up (use CI image tag)
+      # NEW: retag loaded image to the tag used by your base compose file
+      - name: Retag image to compose default
         run: |
-          docker compose \
-            -f test/compose/docker-compose.yml \
-            -f test/compose/docker-compose.ci.yml \
-            up -d --build
+          docker tag "${IMAGE_CI}" "ghcr.io/${{ github.repository }}:latest"
         env:
           IMAGE_CI: ${{ env.IMAGE_CI }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
+
+      # Use only the base compose file; no --build, no CI overlay
+      - name: Compose up
+        run: |
+          docker compose -f test/compose/docker-compose.yml up -d
 
       - name: Wait for gateway readiness
         run: |
@@ -151,10 +152,8 @@ jobs:
             sleep 0.5
           done
           echo "::error ::gateway not ready"
-          docker compose -f test/compose/docker-compose.yml -f test/compose/docker-compose.ci.yml logs --no-color || true
+          docker compose -f test/compose/docker-compose.yml logs --no-color || true
           exit 1
-        env:
-          IMAGE_CI: ${{ env.IMAGE_CI }}
 
       - name: Run E2E tests
         run: go test ./test/*_test.go -v -count=1
@@ -162,10 +161,7 @@ jobs:
       - name: Dump compose logs
         if: always()
         run: |
-          docker compose \
-            -f test/compose/docker-compose.yml \
-            -f test/compose/docker-compose.ci.yml \
-            logs --no-color > e2e-compose-logs.txt || true
+          docker compose -f test/compose/docker-compose.yml logs --no-color > e2e-compose-logs.txt || true
 
       - name: Upload compose logs
         if: always()
@@ -177,7 +173,4 @@ jobs:
       - name: Compose down
         if: always()
         run: |
-          docker compose \
-            -f test/compose/docker-compose.yml \
-            -f test/compose/docker-compose.ci.yml \
-            down -v
+          docker compose -f test/compose/docker-compose.yml down -v
