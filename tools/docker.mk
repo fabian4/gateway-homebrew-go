@@ -9,7 +9,7 @@ DOCKERFILE ?= $(TOP)/Dockerfile
 CONTEXT    ?= $(TOP)
 
 # Build args
-GO_VERSION ?= 1.23.0
+GO_VERSION ?= 1.24.4
 PLATFORMS  ?= linux/amd64,linux/arm64
 BUILDER    ?= ghx
 

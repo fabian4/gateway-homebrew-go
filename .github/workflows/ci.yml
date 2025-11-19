@@ -14,7 +14,7 @@ concurrency:
 env:
   MODULE: github.com/fabian4/gateway-homebrew-go
   IMAGE_CI: ghcr.io/${{ github.repository }}:ci-${{ github.sha }}
-  GO_VERSION: 1.23.0
+  GO_VERSION: 1.24.4
 
 jobs:
   test:
@@ -39,11 +39,11 @@ jobs:
       - name: Go vet
         run: go vet ./...
 
+      - name: Install golangci-lint (source)
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.60.3
+
       - name: GolangCI Lint
-        uses: golangci/golangci-lint-action@v4
-        with:
-          version: v1.60
-          args: --timeout=3m
+        run: golangci-lint run --timeout=3m
 
       - name: Unit tests (race)
         run: go test ./internal/... -race -count=1
