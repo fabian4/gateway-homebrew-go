@@ -44,7 +44,12 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				t.Logf("error closing response body: %v", err)
+			}
+		}(res.Body)
 
 		if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
 			t.Fatalf("want upstream u2, got %q", got)
@@ -62,7 +67,12 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				t.Logf("error closing response body: %v", err)
+			}
+		}(res.Body)
 
 		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
 			t.Fatalf("want upstream u1, got %q", got)
@@ -77,7 +87,12 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer res.Body.Close()
+		defer func(Body io.ReadCloser) {
+			err := Body.Close()
+			if err != nil {
+				t.Logf("error closing response body: %v", err)
+			}
+		}(res.Body)
 
 		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
 			t.Fatalf("want upstream u1 (wildcard), got %q", got)
@@ -98,7 +113,11 @@ func TestHopByHopAndXForwarded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	// Upstream should not see hop-by-hop headers
 	if got := res.Header.Get("X-Seen-Connection"); got != "<empty>" {
@@ -129,7 +148,11 @@ func TestCaseInsensitiveHost_PrefixRouting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
 		t.Fatalf("want upstream u2 for /api/v1 with mixed-case host, got %q", got)
@@ -148,7 +171,11 @@ func TestStatusPropagation_418(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	if res.StatusCode != 418 {
 		t.Fatalf("status passthrough: want 418, got %d", res.StatusCode)
@@ -169,7 +196,11 @@ func TestLatencyPassthrough_Sleep(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	if res.StatusCode != 200 {
 		t.Fatalf("status: want 200, got %d", res.StatusCode)
@@ -190,7 +221,11 @@ func TestWildcard_Healthz(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	if res.StatusCode != 200 {
 		t.Fatalf("healthz via wildcard: want 200, got %d", res.StatusCode)

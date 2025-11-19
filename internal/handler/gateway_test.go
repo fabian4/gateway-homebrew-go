@@ -70,7 +70,11 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 	rr := httptest.NewRecorder()
 	gw.ServeHTTP(rr, req)
 	res := rr.Result()
-	defer res.Body.Close()
+	defer func() {
+		if err := res.Body.Close(); err != nil {
+			t.Logf("close body: %v", err)
+		}
+	}()
 
 	if res.StatusCode != 200 {
 		t.Fatalf("status: got %d, want 200", res.StatusCode)

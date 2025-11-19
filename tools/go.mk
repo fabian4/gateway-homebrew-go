@@ -2,7 +2,7 @@
 SHELL := /bin/sh
 include ./common.mk
 
-.PHONY: run build tidy fmt vet test clean help
+.PHONY: run build tidy fmt vet lint test clean help
 .DEFAULT_GOAL := run
 
 run:
@@ -22,6 +22,9 @@ fmt:
 vet:
 	cd "$(TOP)" && $(GO) vet ./...
 
+lint:
+	cd "$(TOP)" && golangci-lint run ./...
+
 test:
 	cd "$(TOP)" && $(GO) test ./...
 
@@ -32,4 +35,4 @@ help:
 	@echo "Targets:"
 	@echo "  run       - go run ./cmd/gateway -config $(CONFIG)"
 	@echo "  build     - build $(BIN_DIR)/$(BIN)"
-	@echo "  tidy|fmt|vet|test|clean"
+	@echo "  tidy|fmt|vet|lint|test|clean"

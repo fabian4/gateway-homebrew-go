@@ -77,9 +77,8 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-
+		if err := Body.Close(); err != nil {
+			log.Printf("error closing upstream body: %v", err)
 		}
 	}(resUp.Body)
 
