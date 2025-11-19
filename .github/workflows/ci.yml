@@ -14,7 +14,7 @@ concurrency:
 env:
   MODULE: github.com/fabian4/gateway-homebrew-go
   IMAGE_CI: ghcr.io/${{ github.repository }}:ci-${{ github.sha }}
-  GO_VERSION: 1.24.4
+  GO_VERSION: 1.23.0
 
 jobs:
   test:
