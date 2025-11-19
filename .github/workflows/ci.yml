@@ -81,6 +81,7 @@ jobs:
             VERSION=${{ github.sha }}
           tags: |
             ${{ env.IMAGE_CI }}
+            ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -91,8 +92,7 @@ jobs:
           cache: true
 
       - name: Compose up
-        run: |
-          docker compose -f test/compose/docker-compose.yml up -d
+        run: docker compose -f test/compose/docker-compose.yml up -d
 
       - name: Wait for gateway readiness
         run: |
