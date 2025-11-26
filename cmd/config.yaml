@@ -1,16 +1,57 @@
 entrypoint:
   - name: web
-    address: ":8080"
+    address: ":18080"
 
 services:
-  - name: service-1
+  - name: api-v1
     proto: http1
     endpoints:
-      - "http://127.0.0.1:9001"
+      - "http://127.0.0.1:19001"   # used for /api/v1
+  - name: api-root
+    proto: http1
+    endpoints:
+      - "http://127.0.0.1:19002"   # used for /api
+  - name: wildcard-subdomains
+    proto: http1
+    endpoints:
+      - "http://127.0.0.1:19003"   # used for *.example.com
+  - name: global-default
+    proto: http1
+    endpoints:
+      - "http://127.0.0.1:19004"   # used as global fallback
 
 routes:
-  - name: route-1
+  # exact host + more specific prefix
+  - name: api-v1
+    match:
+      host: "app.example.com"
+      path_prefix: "/api/v1"
+    service: api-v1
+
+  # exact host default under /api
+  - name: api-root
     match:
       host: "app.example.com"
       path_prefix: "/api"
-    service: service-1
+    service: api-root
+
+  # per-host default for app.example.com
+  - name: app-default
+    match:
+      host: "app.example.com"
+      path_prefix: "/"
+    service: api-root
+
+  # wildcard host for any subdomain of example.com (not example.com itself)
+  - name: subdomains-example
+    match:
+      host: "*.example.com"
+      path_prefix: "/"
+    service: wildcard-subdomains
+
+  # global default for all other hosts
+  - name: global-default
+    match:
+      host: ""
+      path_prefix: "/"
+    service: global-default

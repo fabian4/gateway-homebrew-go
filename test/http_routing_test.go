@@ -36,7 +36,7 @@ func waitReady(t *testing.T) {
 func TestRouting_PrefixAndWildcard(t *testing.T) {
 	waitReady(t)
 
-	// /api/v1 -> u2
+	// /api/v1 -> api-v1 upstream
 	{
 		req, _ := http.NewRequest("GET", base+"/api/v1/ping", nil)
 		req.Host = "app.example.com"
@@ -51,15 +51,15 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
-			t.Fatalf("want upstream u2, got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "api-v1" {
+			t.Fatalf("want upstream api-v1, got %q", got)
 		}
 		if res.StatusCode != 200 {
 			t.Fatalf("status: want 200, got %d", res.StatusCode)
 		}
 	}
 
-	// /api -> u1
+	// /api -> api-root upstream
 	{
 		req, _ := http.NewRequest("GET", base+"/api/ping", nil)
 		req.Host = "app.example.com"
@@ -74,12 +74,12 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
-			t.Fatalf("want upstream u1, got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "api-root" {
+			t.Fatalf("want upstream api-root, got %q", got)
 		}
 	}
 
-	// wildcard host -> u1
+	// global-default for other.local
 	{
 		req, _ := http.NewRequest("GET", base+"/hello", nil)
 		req.Host = "other.local"
@@ -94,8 +94,8 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
-			t.Fatalf("want upstream u1 (wildcard), got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "global-default" {
+			t.Fatalf("want upstream global-default (wildcard), got %q", got)
 		}
 	}
 }
@@ -154,8 +154,8 @@ func TestCaseInsensitiveHost_PrefixRouting(t *testing.T) {
 		}
 	}()
 
-	if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
-		t.Fatalf("want upstream u2 for /api/v1 with mixed-case host, got %q", got)
+	if got := res.Header.Get("X-Upstream-ID"); got != "api-v1" {
+		t.Fatalf("want upstream api-v1 for /api/v1 with mixed-case host, got %q", got)
 	}
 	if res.StatusCode != 200 {
 		t.Fatalf("status: want 200, got %d", res.StatusCode)
@@ -216,7 +216,7 @@ func TestWildcard_Healthz(t *testing.T) {
 	waitReady(t)
 
 	req, _ := http.NewRequest("GET", base+"/healthz", nil)
-	req.Host = "none.local" // no exact host rule; hits wildcard route
+	req.Host = "foo.example.com" // matches *.example.com wildcard host
 	res, err := httpc().Do(req)
 	if err != nil {
 		t.Fatal(err)
