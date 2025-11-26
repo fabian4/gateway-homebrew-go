@@ -8,9 +8,9 @@ import (
 
 func TestMatch_MultiHostAndLongestPrefix(t *testing.T) {
 	routes := []model.Route{
-		{Name: "r1", Hosts: []string{"app.example.com"}, PathPrefix: "/api", Service: "s1"},
-		{Name: "r2", Hosts: []string{"app.example.com"}, PathPrefix: "/api/v1", Service: "s2"},
-		{Name: "r3", Hosts: []string{"other.example.com"}, PathPrefix: "/", Service: "s3"},
+		{Name: "r1", Host: "app.example.com", PathPrefix: "/api", Service: "s1"},
+		{Name: "r2", Host: "app.example.com", PathPrefix: "/api/v1", Service: "s2"},
+		{Name: "r3", Host: "other.example.com", PathPrefix: "/", Service: "s3"},
 	}
 	rt := New(routes)
 
@@ -34,8 +34,8 @@ func TestMatch_MultiHostAndLongestPrefix(t *testing.T) {
 
 func TestMatch_WildcardFallback(t *testing.T) {
 	routes := []model.Route{
-		{Name: "r1", Hosts: []string{"app.example.com"}, PathPrefix: "/api", Service: "s1"},
-		{Name: "r0", Hosts: nil, PathPrefix: "/", Service: "s0"}, // wildcard
+		{Name: "r1", Host: "app.example.com", PathPrefix: "/api", Service: "s1"},
+		{Name: "r0", Host: "", PathPrefix: "/", Service: "s0"}, // wildcard
 	}
 	rt := New(routes)
 

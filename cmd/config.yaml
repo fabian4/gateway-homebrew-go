@@ -11,6 +11,6 @@ services:
 routes:
   - name: route-1
     match:
-      hosts: ["app.example.com"]
+      host: "app.example.com"
       path_prefix: "/api"
     service: service-1

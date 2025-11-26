@@ -13,9 +13,9 @@ type Service struct {
 // Route match + action.
 type Route struct {
 	Name         string
-	Hosts        []string // empty => wildcard
-	PathPrefix   string   // must start with "/"
-	Service      string   // Service.Name
-	PreserveHost bool     // optional (default false)
-	HostRewrite  string   // optional; if set, overrides PreserveHost
+	Host         string // empty => wildcard
+	PathPrefix   string // must start with "/"
+	Service      string // Service.Name
+	PreserveHost bool   // optional (default false)
+	HostRewrite  string // optional; if set, overrides PreserveHost
 }

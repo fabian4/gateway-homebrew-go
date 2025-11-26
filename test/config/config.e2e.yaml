@@ -15,13 +15,13 @@ services:
 routes:
   - name: r-v1
     match:
-      hosts: ["app.example.com"]
+      host: "app.example.com"
       path_prefix: "/api/v1"
     service: u2
 
   - name: r-api
     match:
-      hosts: ["app.example.com"]
+      host: "app.example.com"
       path_prefix: "/api"
     service: u1
 

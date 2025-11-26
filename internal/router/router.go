@@ -15,14 +15,12 @@ type Table struct {
 func New(routes []model.Route) *Table {
 	t := &Table{byHost: make(map[string][]model.Route)}
 	for _, r := range routes {
-		if len(r.Hosts) == 0 {
+		if strings.TrimSpace(r.Host) == "" {
 			t.any = append(t.any, r)
 			continue
 		}
-		for _, h := range r.Hosts {
-			h = strings.ToLower(h)
-			t.byHost[h] = append(t.byHost[h], r)
-		}
+		h := strings.ToLower(r.Host)
+		t.byHost[h] = append(t.byHost[h], r)
 	}
 	for h := range t.byHost {
 		sort.SliceStable(t.byHost[h], func(i, j int) bool {

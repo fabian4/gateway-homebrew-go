@@ -25,8 +25,8 @@ type rawConfig struct {
 	Routes []struct {
 		Name  string `yaml:"name"`
 		Match struct {
-			Hosts      []string `yaml:"hosts"`
-			PathPrefix string   `yaml:"path_prefix"`
+			Host       string `yaml:"host"`
+			PathPrefix string `yaml:"path_prefix"`
 		} `yaml:"match"`
 		Service string `yaml:"service"`
 		Options struct {
@@ -112,13 +112,7 @@ func Load(path string) (*Config, error) {
 		if !strings.HasPrefix(pfx, "/") {
 			return nil, fmt.Errorf("routes[%d]: path_prefix must start with '/'", i)
 		}
-		var hosts []string
-		for _, h := range r.Match.Hosts {
-			h = strings.ToLower(strings.TrimSpace(h))
-			if h != "" {
-				hosts = append(hosts, h)
-			}
-		}
+		host := strings.ToLower(strings.TrimSpace(r.Match.Host))
 		service := strings.TrimSpace(r.Service)
 		if service == "" {
 			return nil, fmt.Errorf("routes[%d]: service (service name) is required", i)
@@ -128,7 +122,7 @@ func Load(path string) (*Config, error) {
 		}
 		rt := model.Route{
 			Name:         name,
-			Hosts:        hosts, // empty => wildcard
+			Host:         host, // empty => wildcard
 			PathPrefix:   pfx,
 			Service:      service,
 			PreserveHost: r.Options.PreserveHost,
@@ -138,8 +132,14 @@ func Load(path string) (*Config, error) {
 	}
 	// deterministic order: host asc ("" last), then longer prefix first
 	sort.SliceStable(routes, func(i, j int) bool {
-		hi := firstHost(routes[i].Hosts)
-		hj := firstHost(routes[j].Hosts)
+		hi := routes[i].Host
+		hj := routes[j].Host
+		if hi == "" {
+			hi = "~"
+		}
+		if hj == "" {
+			hj = "~"
+		}
 		if hi == hj {
 			return len(routes[i].PathPrefix) > len(routes[j].PathPrefix)
 		}
@@ -151,11 +151,4 @@ func Load(path string) (*Config, error) {
 		Services: svcs,
 		Routes:   routes,
 	}, nil
-}
-
-func firstHost(hosts []string) string {
-	if len(hosts) == 0 {
-		return "~" // after normal hosts in ASCII ordering
-	}
-	return hosts[0]
 }

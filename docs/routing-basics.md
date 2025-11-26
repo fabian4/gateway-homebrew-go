@@ -116,4 +116,76 @@ curl -i http://127.0.0.1:8080/hello -H "Host: example.local"
 •	Body size limiting, request/response header rewrite, and logging middleware will be added in subsequent steps.
 
 ## Routing
-> TODO: Define host and path-prefix matching, precedence rules, and examples.
+
+### Match model
+- Host: exact hostname (case-insensitive). If omitted or empty the route is a wildcard (matches any host).
+- PathPrefix: leading path segment prefix (must start with "/"). Simple byte prefix match; 
+  - no regex, no glob, no normalization beyond what net/http already does for now.
+
+### Algorithm (per inbound request)
+1. Normalize the inbound Host header: lowercase and strip optional port ("example.com:443" -> "example.com").
+2. Look up the route list for that exact host. If none match, fall back to the wildcard list (routes with no host defined).
+3. Route lists are pre-sorted by descending PathPrefix length. The first route whose PathPrefix is a prefix of the request URL.Path wins.
+4. If no route matches, the request is currently unhandled (future: default / 404 behavior).
+
+### Precedence rules
+1. Exact host routes always take precedence over wildcard routes.
+2. Longer PathPrefix beats shorter (e.g. "/api/v1" before "/api").
+3. Ties (same host presence and same PathPrefix length) preserve the order declared in the config (stable sort) – first wins.
+
+### Path prefix semantics
+- Prefix "/api" matches "/api", "/api/", and "/api/v1/items".
+- For stricter separation, use a trailing slash: "/api/" will NOT match "/apix" but will match all under "/api/...".
+- There is no automatic slash insertion; choose the prefix explicitly.
+
+### Host semantics
+- Exact only. No wildcards like "*.example.com" and no pattern matching yet.
+- Single host per route keeps config simple; omit host for wildcard.
+
+### Host rewrite options
+- PreserveHost=true: upstream request Host header set to the original inbound host.
+- HostRewrite: if non-empty overrides PreserveHost and sets upstream Host to the provided value.
+- Default (neither option): upstream Host is the selected service endpoint host.
+
+### Minimal example config
+```yaml
+services:
+  - name: echo
+    proto: http1
+    endpoints:
+      - http://127.0.0.1:9001
+  - name: api
+    proto: http1
+    endpoints:
+      - http://127.0.0.1:9002
+routes:
+  - name: api-v1
+    match:
+      host: "app.example.com"
+      path_prefix: "/api/v1"
+    service: api
+  - name: api-root
+    match:
+      host: "app.example.com"
+      path_prefix: "/api"
+    service: api
+  - name: echo-wildcard
+    match:
+      path_prefix: "/"
+    service: echo
+```
+
+### Match examples
+| Inbound Host | Path                | Selected Route   | Reason |
+|--------------|---------------------|------------------|--------|
+| app.example.com | /api/v1/users      | api-v1           | Exact host; longest prefix (/api/v1) |
+| app.example.com | /api/status       | api-root         | Exact host; /api matches; /api/v1 does not |
+| other.example.org | /api/v1/users   | echo-wildcard    | No exact host routes; wildcard fallback |
+| other.example.org | /               | echo-wildcard    | Wildcard root prefix |
+
+### Future extensions (not yet implemented)
+- Wildcard / suffix host matching ("*.example.com").
+- Regex or segment-aware routing.
+- Priority weights and conditional predicates (method, header, query).
+- Default / catch-all configurable response when no route matches.
+

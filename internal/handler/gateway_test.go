@@ -47,7 +47,7 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 	rs := []model.Route{
 		{
 			Name:       "r1",
-			Hosts:      []string{"app.example.com"},
+			Host:       "app.example.com",
 			PathPrefix: "/api",
 			Service:    "s1",
 			// default: preserve_host=false, no host_rewrite
@@ -111,7 +111,7 @@ func TestGateway_PreserveHost(t *testing.T) {
 	rs := []model.Route{
 		{
 			Name:         "r1",
-			Hosts:        []string{"app.example.com"},
+			Host:         "app.example.com",
 			PathPrefix:   "/",
 			Service:      "s1",
 			PreserveHost: true,
@@ -148,7 +148,7 @@ func TestGateway_HostRewrite(t *testing.T) {
 	rs := []model.Route{
 		{
 			Name:        "r1",
-			Hosts:       []string{"app.example.com"},
+			Host:        "app.example.com",
 			PathPrefix:  "/",
 			Service:     "s1",
 			HostRewrite: "rewrite.local",

@@ -31,7 +31,7 @@ func TestLoad_V1_Minimal(t *testing.T) {
             routes:
               - name: route-1
                 match:
-                  hosts: ["App.Example.COM"]
+                  host: "App.Example.COM"
                   path_prefix: "/api"
                 service: service-1
             `
@@ -71,8 +71,8 @@ func TestLoad_V1_Minimal(t *testing.T) {
 		t.Fatalf("route service: got %q, want %q", got, want)
 	}
 	// host should be normalized to lower-case by loader
-	if len(rt.Hosts) != 1 || rt.Hosts[0] != "app.example.com" {
-		t.Fatalf("hosts normalized unexpected: %+v", rt.Hosts)
+	if rt.Host != "app.example.com" {
+		t.Fatalf("host normalized unexpected: %q", rt.Host)
 	}
 }
 
