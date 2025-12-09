@@ -1,83 +1,50 @@
-<!--
-Sync Impact Report
-- Version change: 1.1.1 → 1.1.2
-- Modified principles: none
-- Added sections: none
-- Removed sections: none
-- Templates requiring updates:
-  ✅ .specify/templates/plan-template.md (path updated)
-  ✅ .specify/templates/spec-template.md (path updated)
-  ✅ .specify/templates/tasks-template.md (path updated)
-  ✅ All agent/prompt files (paths updated)
-- Follow-up TODOs: TODO(RATIFICATION_DATE): Original adoption date unknown; confirm with maintainers
--->
-
-# gateway-homebrew-go Constitution
+# [PROJECT_NAME] Constitution
+<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
 
 ## Core Principles
 
-### I. Docs-First, Minimal Viable Increments
-Every feature MUST start with documentation (spec.md, plan.md) before code. Delivery proceeds
-as independently testable user stories (P1→Pn), each forming a viable MVP when implemented alone.
-Rationale: Docs-first clarifies scope and enables parallel, testable increments.
+### [PRINCIPLE_1_NAME]
+<!-- Example: I. Library-First -->
+[PRINCIPLE_1_DESCRIPTION]
+<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
 
-### II. Library-First, Clear Contracts
-Core functionality MUST be implemented as small, self-contained libraries with explicit contracts
-(openapi/CLI signatures/config schemas). Libraries MUST be independently testable and documented.
-Rationale: Library boundaries reduce coupling and simplify maintenance.
+### [PRINCIPLE_2_NAME]
+<!-- Example: II. CLI Interface -->
+[PRINCIPLE_2_DESCRIPTION]
+<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
 
-### III. Test-First (NON-NEGOTIABLE)
-Tests for each story MUST be authored before implementation; they MUST fail prior to coding.
-Enforce Red-Green-Refactor with unit, contract, and integration tests as applicable.
-Rationale: Prevents regressions and anchors behavior in measurable outcomes.
+### [PRINCIPLE_3_NAME]
+<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
+[PRINCIPLE_3_DESCRIPTION]
+<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
 
-### IV. Integration Focus Areas
-Integration tests are REQUIRED for gateway-critical surfaces: routing, load-balancing, TLS, L4
-passthrough, config hot-reload, and upstream communication. Contract changes REQUIRE new tests.
-Rationale: Gateway correctness depends on cross-component behavior under real conditions.
+### [PRINCIPLE_4_NAME]
+<!-- Example: IV. Integration Testing -->
+[PRINCIPLE_4_DESCRIPTION]
+<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
 
-### V. Observability, Reliability, and Breakage Discipline
-Structured logging, basic metrics (RPS, status codes, latencies), and timeout policies MUST be
-present for new capabilities. Breaking changes MUST follow semver, be documented, and include
-migration notes. Start simple (YAGNI) and justify complexity in plan.md "Complexity Tracking".
-Rationale: Operability and predictable evolution are essential for a gateway.
+### [PRINCIPLE_5_NAME]
+<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
+[PRINCIPLE_5_DESCRIPTION]
+<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
 
-## Additional Constraints
+## [SECTION_2_NAME]
+<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
 
-- Language: Go (per repository). Public APIs follow Go conventions and error handling best
-  practices.
-- CLI/Config: Text I/O and JSON are accepted; config validation MUST guard unsafe deployments.
-- Security: TLS handling and upstream security changes MUST include threat considerations in docs.
-- Performance: Define measurable targets in spec.md success criteria for routing and proxy paths.
-- Platform & Tooling:
-  - Primary development OS: macOS (Darwin). Secondary: Linux. Windows supported for users but
-    NOT a primary dev target.
-  - Shell: zsh/bash preferred. PowerShell is NOT required; avoid .ps1-only tooling.
-  - Tooling MUST prefer POSIX utilities and Makefile targets compatible with macOS; avoid
-    Windows-only paths and assumptions.
-  - Scripts in tools/ MUST run on macOS; convert any PowerShell reliance to shell
-    scripts.
+[SECTION_2_CONTENT]
+<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
 
-## Development Workflow
+## [SECTION_3_NAME]
+<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
 
-- Constitution Check gate MUST be completed before Phase 0 research and re-checked after design.
-- Project structure MUST reflect the chosen layout in plan-template.md and be kept consistent.
-- User stories MUST remain independently implementable, testable, and demonstrable.
-- Complexity MUST be justified explicitly in plan.md when violating simplicity.
-- CI & Packaging:
-  - Builds MUST cross-compile darwin/amd64 and darwin/arm64; Linux container tests MUST run.
-  - Skip Windows-specific CI steps; treat Windows as consumer runtime only.
-  - Releases MUST publish GitHub Releases binaries (darwin/amd64, darwin/arm64) and GHCR
-    images; NO Homebrew tap is maintained.
+[SECTION_3_CONTENT]
+<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
 
 ## Governance
+<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-- This constitution supersedes conflicting practices within this project.
-- Amendments: propose via PR with Sync Impact Report, rationale, migration plan, and template
-  alignment notes. Approval by maintainers required.
-- Versioning policy: semver for constitution versions — MAJOR for breaking governance changes,
-  MINOR for added principles/sections, PATCH for clarifications.
-- Compliance: All PRs MUST verify Constitution Check gates; reviewers MUST block noncompliant
-  changes until addressed.
+[GOVERNANCE_RULES]
+<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
 
-**Version**: 1.1.2 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date unknown | **Last Amended**: 2025-12-09
+**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
+<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->

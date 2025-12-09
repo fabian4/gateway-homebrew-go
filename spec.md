@@ -27,7 +27,7 @@
 ## API Surface & CLI Commands
 - L7 APIs:
   - HTTP/1.1 reverse proxy (Partial)
-  - Host/Path-prefix routing (Planned)
+  - Host/Path-prefix routing (Planned) - Longest path match (most specific wins)
   - Health/ready endpoints (Planned)
   - Admin/status endpoint (Planned)
 - Protocols:
@@ -180,7 +180,7 @@
 - Goals: Functional HTTP/1.1 reverse proxy with basic routing and logging.
 - Key features:
   - HTTP/1.1 reverse proxy core (Partial)
-  - Host/Path-prefix routing (Planned)
+  - Host/Path-prefix routing (Planned) - Longest path match (most specific wins)
   - Static upstream clusters with Smooth WRR (Planned)
   - Basic timeouts (read/write/upstream) (Planned)
   - Structured access log (JSON) (Planned)
