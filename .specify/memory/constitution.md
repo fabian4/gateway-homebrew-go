@@ -1,14 +1,14 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0
-- Modified principles: none (titles unchanged)
-- Added sections: Platform & Tooling (expanded Additional Constraints), CI & Packaging updates in Development Workflow
+- Version change: 1.1.1 → 1.1.2
+- Modified principles: none
+- Added sections: none
 - Removed sections: none
 - Templates requiring updates:
-  ✅ .specify/templates/plan-template.md (Constitution Check remains generic)
-  ✅ .specify/templates/spec-template.md (compatibility/packaging notes align to macOS-first)
-  ✅ .specify/templates/tasks-template.md (no Windows-specific path guidance)
-  ⚠ pending: README.md and spec.md references must be validated during next docs sweep (updated guidance included here)
+  ✅ .specify/templates/plan-template.md (path updated)
+  ✅ .specify/templates/spec-template.md (path updated)
+  ✅ .specify/templates/tasks-template.md (path updated)
+  ✅ All agent/prompt files (paths updated)
 - Follow-up TODOs: TODO(RATIFICATION_DATE): Original adoption date unknown; confirm with maintainers
 -->
 
@@ -55,7 +55,7 @@ Rationale: Operability and predictable evolution are essential for a gateway.
   - Shell: zsh/bash preferred. PowerShell is NOT required; avoid .ps1-only tooling.
   - Tooling MUST prefer POSIX utilities and Makefile targets compatible with macOS; avoid
     Windows-only paths and assumptions.
-  - Scripts in openspec/tools MUST run on macOS; convert any PowerShell reliance to shell
+  - Scripts in tools/ MUST run on macOS; convert any PowerShell reliance to shell
     scripts.
 
 ## Development Workflow
@@ -80,4 +80,4 @@ Rationale: Operability and predictable evolution are essential for a gateway.
 - Compliance: All PRs MUST verify Constitution Check gates; reviewers MUST block noncompliant
   changes until addressed.
 
-**Version**: 1.1.0 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date unknown | **Last Amended**: 2025-12-08
+**Version**: 1.1.2 | **Ratified**: TODO(RATIFICATION_DATE): original adoption date unknown | **Last Amended**: 2025-12-09
