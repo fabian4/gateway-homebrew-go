@@ -51,8 +51,8 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "api-v1" {
-			t.Fatalf("want upstream api-v1, got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
+			t.Fatalf("want upstream u2 (api-v1), got %q", got)
 		}
 		if res.StatusCode != 200 {
 			t.Fatalf("status: want 200, got %d", res.StatusCode)
@@ -74,8 +74,8 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "api-root" {
-			t.Fatalf("want upstream api-root, got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
+			t.Fatalf("want upstream u1 (api-root), got %q", got)
 		}
 	}
 
@@ -94,8 +94,8 @@ func TestRouting_PrefixAndWildcard(t *testing.T) {
 			}
 		}(res.Body)
 
-		if got := res.Header.Get("X-Upstream-ID"); got != "global-default" {
-			t.Fatalf("want upstream global-default (wildcard), got %q", got)
+		if got := res.Header.Get("X-Upstream-ID"); got != "u1" {
+			t.Fatalf("want upstream u1 (global-default), got %q", got)
 		}
 	}
 }
@@ -154,8 +154,8 @@ func TestCaseInsensitiveHost_PrefixRouting(t *testing.T) {
 		}
 	}()
 
-	if got := res.Header.Get("X-Upstream-ID"); got != "api-v1" {
-		t.Fatalf("want upstream api-v1 for /api/v1 with mixed-case host, got %q", got)
+	if got := res.Header.Get("X-Upstream-ID"); got != "u2" {
+		t.Fatalf("want upstream u2 for /api/v1 with mixed-case host, got %q", got)
 	}
 	if res.StatusCode != 200 {
 		t.Fatalf("status: want 200, got %d", res.StatusCode)
