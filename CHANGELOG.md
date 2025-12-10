@@ -1,6 +1,6 @@
 ﻿# Changelog
 
-## v0.0.2 - 2025-12-10
+## v0.0.7 - 2025-12-10
 - Enhanced Routing: Host & Path matching with wildcard support
 - Refactored Configuration: Entry points and Services structure
 - CI/CD: Added Unit & E2E tests, Release workflow
