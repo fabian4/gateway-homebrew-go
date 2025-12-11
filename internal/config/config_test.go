@@ -54,7 +54,7 @@ func TestLoad_V1_Minimal(t *testing.T) {
 	if got, want := svc.Proto, "http1"; got != want {
 		t.Fatalf("service proto: got %q, want %q", got, want)
 	}
-	if len(svc.Endpoints) != 1 || svc.Endpoints[0].Host != "127.0.0.1:9001" {
+	if len(svc.Endpoints) != 1 || svc.Endpoints[0].URL.Host != "127.0.0.1:9001" {
 		t.Fatalf("endpoints parsed unexpected: %+v", svc.Endpoints)
 	}
 	if len(cfg.Routes) != 1 {
@@ -73,6 +73,34 @@ func TestLoad_V1_Minimal(t *testing.T) {
 	// host should be normalized to lower-case by loader
 	if rt.Host != "app.example.com" {
 		t.Fatalf("host normalized unexpected: %q", rt.Host)
+	}
+}
+
+func TestLoad_WeightedEndpoints(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints:
+      - "http://e1:80"
+      - { url: "http://e2:80", weight: 5 }
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	svc := cfg.Services["s1"]
+	if len(svc.Endpoints) != 2 {
+		t.Fatalf("want 2 endpoints, got %d", len(svc.Endpoints))
+	}
+	if svc.Endpoints[0].Weight != 1 {
+		t.Errorf("e1 weight: got %d, want 1", svc.Endpoints[0].Weight)
+	}
+	if svc.Endpoints[1].Weight != 5 {
+		t.Errorf("e2 weight: got %d, want 5", svc.Endpoints[1].Weight)
 	}
 }
 

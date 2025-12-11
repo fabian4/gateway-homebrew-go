@@ -12,6 +12,12 @@ services:
     endpoints:
       - "http://u2:9002"
 
+  - name: u-lb
+    proto: http1
+    endpoints:
+      - { url: "http://u1:9001", weight: 3 }
+      - { url: "http://u2:9002", weight: 1 }
+
 routes:
   - name: r-v1
     match:
@@ -24,6 +30,12 @@ routes:
       host: "app.example.com"
       path_prefix: "/api"
     service: u1
+
+  - name: r-lb
+    match:
+      host: "lb.local"
+      path_prefix: "/"
+    service: u-lb
 
   # wildcard → u1, so /healthz works for any Host
   - name: r-any

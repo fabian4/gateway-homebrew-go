@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
+	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 )
@@ -18,10 +19,15 @@ type Gateway struct {
 	Routes     *router.Table
 	Services   map[string]model.Service
 	Transports fwd.Factory
+	balancers  map[string]lb.Balancer
 }
 
 func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory) *Gateway {
-	return &Gateway{Routes: rt, Services: svcs, Transports: f}
+	lbs := make(map[string]lb.Balancer)
+	for name, svc := range svcs {
+		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
+	}
+	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs}
 }
 
 var _ http.Handler = (*Gateway)(nil)
@@ -38,7 +44,11 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// minimal choice: first endpoint (TODO: plug LB)
-	base := svc.Endpoints[0]
+	base := g.balancers[route.Service].Next()
+	if base == nil {
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
+	}
 	tr := g.Transports.Get(svc.Proto)
 
 	// upstream URL = base + path

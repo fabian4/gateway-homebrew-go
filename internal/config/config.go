@@ -18,9 +18,9 @@ type rawConfig struct {
 		Address string `yaml:"address"`
 	} `yaml:"entrypoint"`
 	Services []struct {
-		Name      string   `yaml:"name"`
-		Proto     string   `yaml:"proto"`
-		Endpoints []string `yaml:"endpoints"`
+		Name      string `yaml:"name"`
+		Proto     string `yaml:"proto"`
+		Endpoints []any  `yaml:"endpoints"`
 	} `yaml:"services"`
 	Routes []struct {
 		Name  string `yaml:"name"`
@@ -77,16 +77,33 @@ func Load(path string) (*Config, error) {
 		if len(s.Endpoints) == 0 {
 			return nil, fmt.Errorf("services[%d]: endpoints is empty", i)
 		}
-		var eps []*url.URL
+		var eps []model.Endpoint
 		for j, raw := range s.Endpoints {
-			u, err := url.Parse(strings.TrimSpace(raw))
+			var rawURL string
+			weight := 1
+
+			switch v := raw.(type) {
+			case string:
+				rawURL = v
+			case map[string]any:
+				if u, ok := v["url"].(string); ok {
+					rawURL = u
+				}
+				if w, ok := v["weight"].(int); ok {
+					weight = w
+				}
+			default:
+				return nil, fmt.Errorf("services[%d].endpoints[%d]: invalid format", i, j)
+			}
+
+			u, err := url.Parse(strings.TrimSpace(rawURL))
 			if err != nil {
 				return nil, fmt.Errorf("services[%d].endpoints[%d]: parse: %v", i, j, err)
 			}
 			if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 				return nil, fmt.Errorf("services[%d].endpoints[%d]: must be http(s) URL with host", i, j)
 			}
-			eps = append(eps, u)
+			eps = append(eps, model.Endpoint{URL: u, Weight: weight})
 		}
 		if _, dup := svcs[name]; dup {
 			return nil, fmt.Errorf("services: duplicate name %q", name)

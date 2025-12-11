@@ -231,3 +231,31 @@ func TestWildcard_Healthz(t *testing.T) {
 		t.Fatalf("healthz via wildcard: want 200, got %d", res.StatusCode)
 	}
 }
+
+func TestLoadBalancing_Weighted(t *testing.T) {
+	waitReady(t)
+
+	// Service u-lb has u1:3, u2:1.
+	// Expected sequence (Smooth WRR): u1, u1, u2, u1.
+	expected := []string{"u1", "u1", "u2", "u1"}
+
+	for i, want := range expected {
+		req, _ := http.NewRequest("GET", base+"/lb", nil)
+		req.Host = "lb.local"
+		res, err := httpc().Do(req)
+		if err != nil {
+			t.Fatalf("step %d: %v", i, err)
+		}
+		defer func() {
+			_ = res.Body.Close()
+		}()
+
+		if res.StatusCode != 200 {
+			t.Fatalf("step %d: status want 200, got %d", i, res.StatusCode)
+		}
+		got := res.Header.Get("X-Upstream-ID")
+		if got != want {
+			t.Errorf("step %d: want upstream %q, got %q", i, want, got)
+		}
+	}
+}

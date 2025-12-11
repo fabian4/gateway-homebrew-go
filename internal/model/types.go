@@ -6,8 +6,13 @@ import "net/url"
 type Service struct {
 	Name      string
 	Proto     string     // "http1" | "auto" | "h2c" (future: "h2","h3")
-	Endpoints []*url.URL // normalized, non-empty
+	Endpoints []Endpoint // normalized, non-empty
 	// TODO: LB policy, healthcheck, mTLS...
+}
+
+type Endpoint struct {
+	URL    *url.URL
+	Weight int // 0 means default (1)
 }
 
 // Route match + action.

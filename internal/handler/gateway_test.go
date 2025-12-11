@@ -41,7 +41,7 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 		"s1": {
 			Name:      "s1",
 			Proto:     "http1",
-			Endpoints: []*url.URL{upURL},
+			Endpoints: []model.Endpoint{{URL: upURL}},
 		},
 	}
 	rs := []model.Route{
@@ -106,7 +106,7 @@ func TestGateway_PreserveHost(t *testing.T) {
 	upURL := mustURL(t, up.URL)
 
 	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []*url.URL{upURL}},
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
 	}
 	rs := []model.Route{
 		{
@@ -143,7 +143,7 @@ func TestGateway_HostRewrite(t *testing.T) {
 	upURL := mustURL(t, up.URL)
 
 	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []*url.URL{upURL}},
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
 	}
 	rs := []model.Route{
 		{
