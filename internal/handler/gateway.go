@@ -56,7 +56,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Path:         r.URL.Path,
 			Protocol:     r.Proto,
 			Status:       status,
-			Duration:     time.Since(start).String(),
+			Duration:     time.Since(start).Milliseconds(),
 			RemoteIP:     r.RemoteAddr,
 			UserAgent:    r.UserAgent(),
 			Referer:      r.Referer(),
@@ -64,7 +64,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			Upstream:     upstreamAddr,
 			BytesWritten: lw.bytes,
 		}
-		_ = json.NewEncoder(g.AccessLog).Encode(entry)
+		if err := json.NewEncoder(g.AccessLog).Encode(entry); err != nil {
+			log.Printf("access log: %v", err)
+		}
 	}()
 
 	route := g.Routes.Match(r.Host, r.URL.Path)
@@ -232,7 +234,7 @@ type AccessLog struct {
 	Path         string    `json:"path"`
 	Protocol     string    `json:"protocol"`
 	Status       int       `json:"status"`
-	Duration     string    `json:"duration"`
+	Duration     int64     `json:"duration_ms"`
 	RemoteIP     string    `json:"remote_ip"`
 	UserAgent    string    `json:"user_agent"`
 	Referer      string    `json:"referer"`

@@ -9,7 +9,7 @@ The gateway outputs structured access logs in JSON format to stdout.
 - `path`: Request path
 - `protocol`: HTTP protocol version
 - `status`: HTTP status code
-- `duration`: Request duration
+- `duration_ms`: Request duration in milliseconds
 - `remote_ip`: Client IP address
 - `user_agent`: User-Agent header
 - `referer`: Referer header

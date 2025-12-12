@@ -30,21 +30,12 @@ func main() {
 	reg := fwd.NewDefaultRegistry()
 	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout)
 
-	readTimeout := 15 * time.Second
-	if c.Timeouts.Read > 0 {
-		readTimeout = c.Timeouts.Read
-	}
-	writeTimeout := 30 * time.Second
-	if c.Timeouts.Write > 0 {
-		writeTimeout = c.Timeouts.Write
-	}
-
 	srv := &http.Server{
 		Addr:              c.Listen,
 		Handler:           gw,
-		ReadTimeout:       readTimeout,
+		ReadTimeout:       c.Timeouts.Read,
 		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      writeTimeout,
+		WriteTimeout:      c.Timeouts.Write,
 		IdleTimeout:       60 * time.Second,
 	}
 	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d services=%d)",

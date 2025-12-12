@@ -55,6 +55,11 @@ type Timeouts struct {
 	Upstream time.Duration
 }
 
+const (
+	DefaultReadTimeout  = 15 * time.Second
+	DefaultWriteTimeout = 30 * time.Second
+)
+
 func Load(path string) (*Config, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
@@ -178,6 +183,7 @@ func Load(path string) (*Config, error) {
 
 	// timeouts
 	var timeouts Timeouts
+	timeouts.Read = DefaultReadTimeout
 	if rc.Timeouts.Read != "" {
 		d, err := time.ParseDuration(rc.Timeouts.Read)
 		if err != nil {
@@ -185,6 +191,7 @@ func Load(path string) (*Config, error) {
 		}
 		timeouts.Read = d
 	}
+	timeouts.Write = DefaultWriteTimeout
 	if rc.Timeouts.Write != "" {
 		d, err := time.ParseDuration(rc.Timeouts.Write)
 		if err != nil {

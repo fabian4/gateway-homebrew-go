@@ -225,4 +225,10 @@ func TestGateway_AccessLog(t *testing.T) {
 	if logEntry.BytesWritten != 2 {
 		t.Errorf("log bytes: got %d, want 2", logEntry.BytesWritten)
 	}
+	if logEntry.Duration < 0 {
+		t.Errorf("log duration: got %d, want >=0", logEntry.Duration)
+	}
+	if logEntry.Time.IsZero() {
+		t.Errorf("log time: got zero, want non-zero")
+	}
 }
