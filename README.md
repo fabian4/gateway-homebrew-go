@@ -16,7 +16,7 @@
 - [x] [Host/Path-prefix routing](docs/routing-basics.md#routing)
 - [x] [Static upstreams + Smooth WRR](docs/load-balancing.md#wrr)
 - [x] [Basic timeouts (read/write/upstream)](docs/reliability-basics.md#timeouts)
-- [ ] [Structured access log (JSON)](docs/observability.md#access-log)
+- [x] [Structured access log (JSON)](docs/observability.md#access-log)
 
 ### v0.2.0 - Inbound TLS & HTTP/2/gRPC
 - [ ] [TLS termination (SNI, multiple certs)](docs/tls-terminator.md)

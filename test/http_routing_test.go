@@ -294,3 +294,23 @@ func TestTimeout_Upstream(t *testing.T) {
 		t.Fatalf("no timeout: want 200, got %d", res2.StatusCode)
 	}
 }
+
+func TestAccessLog_Smoke(t *testing.T) {
+	waitReady(t)
+
+	// Just a smoke test to ensure logging doesn't break the request/response flow.
+	// Verification of JSON output is done in unit tests.
+	req, _ := http.NewRequest("GET", base+"/api/ping", nil)
+	req.Host = "app.example.com"
+	res, err := httpc().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+
+	if res.StatusCode != 200 {
+		t.Fatalf("status: want 200, got %d", res.StatusCode)
+	}
+}

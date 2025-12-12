@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"log"
 	"net"
@@ -24,33 +25,63 @@ type Gateway struct {
 	Transports      fwd.Factory
 	balancers       map[string]lb.Balancer
 	UpstreamTimeout time.Duration
+	AccessLog       io.Writer
 }
 
-func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration) *Gateway {
+func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer) *Gateway {
 	lbs := make(map[string]lb.Balancer)
 	for name, svc := range svcs {
 		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
 	}
-	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout}
+	if accessLog == nil {
+		accessLog = io.Discard
+	}
+	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog}
 }
 
 var _ http.Handler = (*Gateway)(nil)
 
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	lw := &loggingResponseWriter{ResponseWriter: w}
+	var serviceName, upstreamAddr string
+	defer func() {
+		status := lw.statusCode
+		if status == 0 {
+			status = http.StatusOK
+		}
+		entry := AccessLog{
+			Time:         start,
+			Method:       r.Method,
+			Path:         r.URL.Path,
+			Protocol:     r.Proto,
+			Status:       status,
+			Duration:     time.Since(start).String(),
+			RemoteIP:     r.RemoteAddr,
+			UserAgent:    r.UserAgent(),
+			Referer:      r.Referer(),
+			Service:      serviceName,
+			Upstream:     upstreamAddr,
+			BytesWritten: lw.bytes,
+		}
+		_ = json.NewEncoder(g.AccessLog).Encode(entry)
+	}()
+
 	route := g.Routes.Match(r.Host, r.URL.Path)
 	if route == nil {
-		http.NotFound(w, r)
+		http.NotFound(lw, r)
 		return
 	}
+	serviceName = route.Service
 	svc, ok := g.Services[route.Service]
 	if !ok || len(svc.Endpoints) == 0 {
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
 	// minimal choice: first endpoint (TODO: plug LB)
 	base := g.balancers[route.Service].Next()
 	if base == nil {
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
 	tr := g.Transports.Get(svc.Proto)
@@ -60,6 +91,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	*u = *base
 	u.Path = joinSlash(base.Path, r.URL.Path)
 	u.RawQuery = r.URL.RawQuery
+	upstreamAddr = u.String()
 
 	hdr := cloneHeader(r.Header)
 	dropHopByHop(hdr)
@@ -76,7 +108,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	reqUp, err := http.NewRequestWithContext(ctx, r.Method, u.String(), r.Body)
 	if err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
+		http.Error(lw, "bad request", http.StatusBadRequest)
 		return
 	}
 	reqUp.Header = hdr
@@ -94,7 +126,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resUp, err := tr.RoundTrip(reqUp)
 	if err != nil {
 		log.Printf("upstream error: %v", err)
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
 	defer func(Body io.ReadCloser) {
@@ -104,9 +136,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}(resUp.Body)
 
 	dropHopByHop(resUp.Header)
-	copyHeaders(w.Header(), resUp.Header)
-	w.WriteHeader(resUp.StatusCode)
-	_, _ = io.Copy(w, resUp.Body)
+	copyHeaders(lw.Header(), resUp.Header)
+	lw.WriteHeader(resUp.StatusCode)
+	_, _ = io.Copy(lw, resUp.Body)
 }
 
 // --- helpers ---
@@ -192,4 +224,39 @@ func setXFProto(h http.Header, r *http.Request) {
 	} else {
 		h.Set("X-Forwarded-Proto", "http")
 	}
+}
+
+type AccessLog struct {
+	Time         time.Time `json:"time"`
+	Method       string    `json:"method"`
+	Path         string    `json:"path"`
+	Protocol     string    `json:"protocol"`
+	Status       int       `json:"status"`
+	Duration     string    `json:"duration"`
+	RemoteIP     string    `json:"remote_ip"`
+	UserAgent    string    `json:"user_agent"`
+	Referer      string    `json:"referer"`
+	Service      string    `json:"service,omitempty"`
+	Upstream     string    `json:"upstream,omitempty"`
+	BytesWritten int64     `json:"bytes_written"`
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+	bytes      int64
+}
+
+func (w *loggingResponseWriter) WriteHeader(code int) {
+	w.statusCode = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *loggingResponseWriter) Write(b []byte) (int, error) {
+	if w.statusCode == 0 {
+		w.statusCode = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(b)
+	w.bytes += int64(n)
+	return n, err
 }

@@ -28,7 +28,7 @@ func main() {
 
 	rt := router.New(c.Routes)
 	reg := fwd.NewDefaultRegistry()
-	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream)
+	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout)
 
 	readTimeout := 15 * time.Second
 	if c.Timeouts.Read > 0 {
