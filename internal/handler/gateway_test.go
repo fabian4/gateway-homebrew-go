@@ -54,7 +54,7 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0)
 
 	// downstream request
 	req := httptest.NewRequest("GET", "http://gw.local/api/ping?x=1", nil)
@@ -118,7 +118,7 @@ func TestGateway_PreserveHost(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -155,7 +155,7 @@ func TestGateway_HostRewrite(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry())
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"

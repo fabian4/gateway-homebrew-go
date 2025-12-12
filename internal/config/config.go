@@ -6,6 +6,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 
@@ -34,12 +35,24 @@ type rawConfig struct {
 			HostRewrite  string `yaml:"host_rewrite"`
 		} `yaml:"options"`
 	} `yaml:"routes"`
+	Timeouts struct {
+		Read     string `yaml:"read"`
+		Write    string `yaml:"write"`
+		Upstream string `yaml:"upstream"`
+	} `yaml:"timeouts"`
 }
 
 type Config struct {
 	Listen   string
 	Services map[string]model.Service
 	Routes   []model.Route
+	Timeouts Timeouts
+}
+
+type Timeouts struct {
+	Read     time.Duration
+	Write    time.Duration
+	Upstream time.Duration
 }
 
 func Load(path string) (*Config, error) {
@@ -163,9 +176,34 @@ func Load(path string) (*Config, error) {
 		return hi < hj
 	})
 
+	// timeouts
+	var timeouts Timeouts
+	if rc.Timeouts.Read != "" {
+		d, err := time.ParseDuration(rc.Timeouts.Read)
+		if err != nil {
+			return nil, fmt.Errorf("timeouts.read: %v", err)
+		}
+		timeouts.Read = d
+	}
+	if rc.Timeouts.Write != "" {
+		d, err := time.ParseDuration(rc.Timeouts.Write)
+		if err != nil {
+			return nil, fmt.Errorf("timeouts.write: %v", err)
+		}
+		timeouts.Write = d
+	}
+	if rc.Timeouts.Upstream != "" {
+		d, err := time.ParseDuration(rc.Timeouts.Upstream)
+		if err != nil {
+			return nil, fmt.Errorf("timeouts.upstream: %v", err)
+		}
+		timeouts.Upstream = d
+	}
+
 	return &Config{
 		Listen:   listen,
 		Services: svcs,
 		Routes:   routes,
+		Timeouts: timeouts,
 	}, nil
 }

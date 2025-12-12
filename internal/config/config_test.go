@@ -104,6 +104,35 @@ routes:
 	}
 }
 
+func TestLoad_Timeouts(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["http://e1:80"]
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+timeouts:
+  read: 1s
+  write: 2m
+  upstream: 500ms
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Timeouts.Read.Seconds() != 1 {
+		t.Errorf("read timeout: got %v, want 1s", cfg.Timeouts.Read)
+	}
+	if cfg.Timeouts.Write.Minutes() != 2 {
+		t.Errorf("write timeout: got %v, want 2m", cfg.Timeouts.Write)
+	}
+	if cfg.Timeouts.Upstream.Milliseconds() != 500 {
+		t.Errorf("upstream timeout: got %v, want 500ms", cfg.Timeouts.Upstream)
+	}
+}
+
 func TestLoad_Errors(t *testing.T) {
 	// missing service reference
 	yml := `

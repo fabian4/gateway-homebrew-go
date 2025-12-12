@@ -259,3 +259,38 @@ func TestLoadBalancing_Weighted(t *testing.T) {
 		}
 	}
 }
+
+func TestTimeout_Upstream(t *testing.T) {
+	waitReady(t)
+
+	// Configured upstream timeout is 500ms.
+	// Request sleep for 1000ms -> should fail with 502.
+	req, _ := http.NewRequest("GET", base+"/api/sleep/1000", nil)
+	req.Host = "app.example.com"
+	res, err := httpc().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = res.Body.Close()
+	}()
+
+	if res.StatusCode != 502 {
+		t.Fatalf("timeout: want 502, got %d", res.StatusCode)
+	}
+
+	// Request sleep for 100ms -> should succeed.
+	req2, _ := http.NewRequest("GET", base+"/api/sleep/100", nil)
+	req2.Host = "app.example.com"
+	res2, err := httpc().Do(req2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		_ = res2.Body.Close()
+	}()
+
+	if res2.StatusCode != 200 {
+		t.Fatalf("no timeout: want 200, got %d", res2.StatusCode)
+	}
+}

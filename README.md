@@ -15,7 +15,7 @@
 - [x] [HTTP/1.1 reverse proxy](docs/routing-basics.md#http11-reverse-proxy)
 - [x] [Host/Path-prefix routing](docs/routing-basics.md#routing)
 - [x] [Static upstreams + Smooth WRR](docs/load-balancing.md#wrr)
-- [ ] [Basic timeouts (read/write/upstream)](docs/reliability-basics.md#timeouts)
+- [x] [Basic timeouts (read/write/upstream)](docs/reliability-basics.md#timeouts)
 - [ ] [Structured access log (JSON)](docs/observability.md#access-log)
 
 ### v0.2.0 - Inbound TLS & HTTP/2/gRPC

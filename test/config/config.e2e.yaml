@@ -2,6 +2,11 @@ entrypoint:
   - name: web
     address: ":8080"
 
+timeouts:
+  read: 5s
+  write: 5s
+  upstream: 500ms
+
 services:
   - name: u1
     proto: http1

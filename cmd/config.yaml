@@ -2,6 +2,11 @@ entrypoint:
   - name: web
     address: ":18080"
 
+timeouts:
+  read: 15s
+  write: 30s
+  upstream: 10s
+
 services:
   - name: api-v1
     proto: http1

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"io"
 	"log"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 
+	"time"
+
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
@@ -16,18 +19,19 @@ import (
 )
 
 type Gateway struct {
-	Routes     *router.Table
-	Services   map[string]model.Service
-	Transports fwd.Factory
-	balancers  map[string]lb.Balancer
+	Routes          *router.Table
+	Services        map[string]model.Service
+	Transports      fwd.Factory
+	balancers       map[string]lb.Balancer
+	UpstreamTimeout time.Duration
 }
 
-func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory) *Gateway {
+func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration) *Gateway {
 	lbs := make(map[string]lb.Balancer)
 	for name, svc := range svcs {
 		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
 	}
-	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs}
+	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout}
 }
 
 var _ http.Handler = (*Gateway)(nil)
@@ -63,7 +67,14 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	setXFProto(hdr, r)
 	setXFHost(hdr, r.Host)
 
-	reqUp, err := http.NewRequestWithContext(r.Context(), r.Method, u.String(), r.Body)
+	ctx := r.Context()
+	if g.UpstreamTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, g.UpstreamTimeout)
+		defer cancel()
+	}
+
+	reqUp, err := http.NewRequestWithContext(ctx, r.Method, u.String(), r.Body)
 	if err != nil {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
