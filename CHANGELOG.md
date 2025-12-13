@@ -1,5 +1,12 @@
 ﻿# Changelog
 
+## v0.1.0 - 2025-12-13
+- HTTP/1.1 reverse proxy
+- Host/Path-prefix routing
+- Static upstreams + Smooth WRR
+- Basic timeouts (read/write/upstream)
+- Structured access log (JSON)
+
 ## v0.0.10 - 2025-12-10
 - Enhanced Routing: Host & Path matching with wildcard support
 - Refactored Configuration: Entry points and Services structure
