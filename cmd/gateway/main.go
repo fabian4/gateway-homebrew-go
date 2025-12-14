@@ -43,6 +43,7 @@ func main() {
 	if c.TLS.Enabled {
 		tlsConfig := &tls.Config{
 			MinVersion: tls.VersionTLS12,
+			NextProtos: []string{"h2", "http/1.1"},
 		}
 		for _, cert := range c.TLS.Certificates {
 			c, err := tls.LoadX509KeyPair(cert.CertFile, cert.KeyFile)

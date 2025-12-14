@@ -126,6 +126,97 @@ routes:
 	}
 }
 
+func TestTLS_ALPN_H2(t *testing.T) {
+	// 1. Start upstream echo server
+	upstreamMux := http.NewServeMux()
+	upstreamMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("ok"))
+	})
+	upstreamSrv := &http.Server{Addr: ":19002", Handler: upstreamMux}
+	go func() { _ = upstreamSrv.ListenAndServe() }()
+	defer func() { _ = upstreamSrv.Close() }()
+	waitForPort(t, "127.0.0.1:19002")
+
+	// 2. Generate self-signed certs
+	tmpDir := t.TempDir()
+	certFile := filepath.Join(tmpDir, "server.crt")
+	keyFile := filepath.Join(tmpDir, "server.key")
+
+	cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048",
+		"-keyout", keyFile, "-out", certFile, "-days", "1", "-nodes",
+		"-subj", "/CN=example.com")
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("openssl failed: %v\n%s", err, out)
+	}
+
+	// 3. Config
+	configFile := filepath.Join(tmpDir, "config.yaml")
+	configContent := fmt.Sprintf(`
+entrypoint:
+  - name: https
+    address: ":18444"
+tls:
+  enabled: true
+  certificates:
+    - cert_file: %q
+      key_file: %q
+services:
+  - name: s1
+    endpoints: ["http://127.0.0.1:19002"]
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+`, certFile, keyFile)
+	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
+		t.Fatalf("write config: %v", err)
+	}
+
+	// 4. Start Gateway
+	binPath := filepath.Join(tmpDir, "gateway")
+	buildCmd := exec.Command("go", "build", "-o", binPath, "../cmd/gateway")
+	if out, err := buildCmd.CombinedOutput(); err != nil {
+		t.Fatalf("build failed: %v\n%s", err, out)
+	}
+	gwCmd := exec.Command(binPath, "-config", configFile)
+	gwCmd.Stdout = os.Stdout
+	gwCmd.Stderr = os.Stderr
+	if err := gwCmd.Start(); err != nil {
+		t.Fatalf("start gateway: %v", err)
+	}
+	defer func() { _ = gwCmd.Process.Kill() }()
+	waitForPort(t, "127.0.0.1:18444")
+
+	// 5. Test ALPN
+	// We force HTTP/2 in the client
+	tr := &http.Transport{
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			ServerName:         "example.com",
+			NextProtos:         []string{"h2", "http/1.1"},
+		},
+		ForceAttemptHTTP2: true,
+	}
+	client := &http.Client{Transport: tr, Timeout: 5 * time.Second}
+
+	req, err := http.NewRequest("GET", "https://127.0.0.1:18444/api/ping", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("request failed: %v", err)
+	}
+	defer func() { _ = res.Body.Close() }()
+
+	if res.Proto != "HTTP/2.0" {
+		t.Errorf("proto: want HTTP/2.0, got %q", res.Proto)
+	}
+	if res.TLS.NegotiatedProtocol != "h2" {
+		t.Errorf("alpn: want h2, got %q", res.TLS.NegotiatedProtocol)
+	}
+}
+
 func waitForPort(t *testing.T, addr string) {
 	deadline := time.Now().Add(10 * time.Second)
 	for time.Now().Before(deadline) {
