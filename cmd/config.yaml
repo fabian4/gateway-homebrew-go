@@ -4,6 +4,7 @@ entrypoint:
 
 # tls:
 #   enabled: true
+#   # ALPN is automatically enabled (h2, http/1.1) if TLS is active.
 #   certificates:
 #     - cert_file: "./certs/example.com.crt"
 #       key_file: "./certs/example.com.key"
