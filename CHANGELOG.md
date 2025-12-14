@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## v0.3.0 - 2025-12-14
+- Upstream Security: Per-cluster TLS and mTLS support
+- Reliability: Passive health checks (circuit breaker) for upstream endpoints
+
 ## v0.2.0 - 2025-12-14
 - Inbound TLS termination (SNI, multiple certs)
 - ALPN support (h2, http/1.1)
