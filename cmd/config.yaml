@@ -2,6 +2,14 @@ entrypoint:
   - name: web
     address: ":18080"
 
+# tls:
+#   enabled: true
+#   certificates:
+#     - cert_file: "./certs/example.com.crt"
+#       key_file: "./certs/example.com.key"
+#     - cert_file: "./certs/other.com.crt"
+#       key_file: "./certs/other.com.key"
+
 timeouts:
   read: 15s
   write: 30s

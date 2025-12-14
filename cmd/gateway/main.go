@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"flag"
 	"log"
 	"net/http"
@@ -38,12 +39,33 @@ func main() {
 		WriteTimeout:      c.Timeouts.Write,
 		IdleTimeout:       60 * time.Second,
 	}
-	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d services=%d)",
-		version.Value, c.Listen, len(c.Routes), len(c.Services))
+
+	if c.TLS.Enabled {
+		tlsConfig := &tls.Config{
+			MinVersion: tls.VersionTLS12,
+		}
+		for _, cert := range c.TLS.Certificates {
+			c, err := tls.LoadX509KeyPair(cert.CertFile, cert.KeyFile)
+			if err != nil {
+				log.Fatalf("load cert %s: %v", cert.CertFile, err)
+			}
+			tlsConfig.Certificates = append(tlsConfig.Certificates, c)
+		}
+		srv.TLSConfig = tlsConfig
+	}
+
+	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d services=%d tls=%v)",
+		version.Value, c.Listen, len(c.Routes), len(c.Services), c.TLS.Enabled)
 
 	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("listen: %v", err)
+		if c.TLS.Enabled {
+			if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("listen tls: %v", err)
+			}
+		} else {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				log.Fatalf("listen: %v", err)
+			}
 		}
 	}()
 

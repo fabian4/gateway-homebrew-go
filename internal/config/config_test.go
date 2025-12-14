@@ -168,3 +168,36 @@ routes:
 		t.Fatalf("want error for path_prefix without leading slash")
 	}
 }
+
+func TestLoad_TLS(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["http://e1:80"]
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+tls:
+  enabled: true
+  certificates:
+    - cert_file: "/tmp/cert.pem"
+      key_file: "/tmp/key.pem"
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.TLS.Enabled {
+		t.Errorf("tls.enabled: got false, want true")
+	}
+	if len(cfg.TLS.Certificates) != 1 {
+		t.Fatalf("tls.certificates len: got %d, want 1", len(cfg.TLS.Certificates))
+	}
+	if got, want := cfg.TLS.Certificates[0].CertFile, "/tmp/cert.pem"; got != want {
+		t.Errorf("cert_file: got %q, want %q", got, want)
+	}
+	if got, want := cfg.TLS.Certificates[0].KeyFile, "/tmp/key.pem"; got != want {
+		t.Errorf("key_file: got %q, want %q", got, want)
+	}
+}

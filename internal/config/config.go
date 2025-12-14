@@ -40,6 +40,13 @@ type rawConfig struct {
 		Write    string `yaml:"write"`
 		Upstream string `yaml:"upstream"`
 	} `yaml:"timeouts"`
+	TLS struct {
+		Enabled      bool `yaml:"enabled"`
+		Certificates []struct {
+			CertFile string `yaml:"cert_file"`
+			KeyFile  string `yaml:"key_file"`
+		} `yaml:"certificates"`
+	} `yaml:"tls"`
 }
 
 type Config struct {
@@ -47,6 +54,17 @@ type Config struct {
 	Services map[string]model.Service
 	Routes   []model.Route
 	Timeouts Timeouts
+	TLS      TLSConfig
+}
+
+type TLSConfig struct {
+	Enabled      bool
+	Certificates []Certificate
+}
+
+type Certificate struct {
+	CertFile string
+	KeyFile  string
 }
 
 type Timeouts struct {
@@ -207,10 +225,29 @@ func Load(path string) (*Config, error) {
 		timeouts.Upstream = d
 	}
 
+	// tls
+	var tlsConfig TLSConfig
+	tlsConfig.Enabled = rc.TLS.Enabled
+	if tlsConfig.Enabled {
+		for i, c := range rc.TLS.Certificates {
+			if c.CertFile == "" || c.KeyFile == "" {
+				return nil, fmt.Errorf("tls.certificates[%d]: cert_file and key_file are required", i)
+			}
+			tlsConfig.Certificates = append(tlsConfig.Certificates, Certificate{
+				CertFile: c.CertFile,
+				KeyFile:  c.KeyFile,
+			})
+		}
+		if len(tlsConfig.Certificates) == 0 {
+			return nil, fmt.Errorf("tls.enabled is true but no certificates provided")
+		}
+	}
+
 	return &Config{
 		Listen:   listen,
 		Services: svcs,
 		Routes:   routes,
 		Timeouts: timeouts,
+		TLS:      tlsConfig,
 	}, nil
 }

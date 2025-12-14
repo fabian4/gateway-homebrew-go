@@ -62,7 +62,7 @@ func main() {
 
 func handleConn(c net.Conn, idle time.Duration, greeting string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 
 	remote := c.RemoteAddr().String()
 	log.Printf("conn %s opened", remote)
