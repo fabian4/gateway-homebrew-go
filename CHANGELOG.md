@@ -1,5 +1,10 @@
 ﻿# Changelog
 
+## v0.2.0 - 2025-12-14
+- Inbound TLS termination (SNI, multiple certs)
+- ALPN support (h2, http/1.1)
+- Basic gRPC pass-through (trailers, streaming)
+
 ## v0.1.0 - 2025-12-13
 - HTTP/1.1 reverse proxy
 - Host/Path-prefix routing
