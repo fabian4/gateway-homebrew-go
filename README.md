@@ -25,7 +25,7 @@
 
 ### v0.3.0 - Upstream Security & Passive Health
 - [x] [Per-cluster: none / TLS / mTLS](docs/upstream-security.md)
-- [ ] [Passive failure stats (de-preference/skip)](docs/reliability-basics.md#passive-health)
+- [x] [Passive failure stats (de-preference/skip)](docs/reliability-basics.md#passive-health)
 
 ### v0.4.0 - L4 TCP Passthrough
 - [ ] [Port → cluster mapping](docs/l4-proxy.md#port-to-cluster)

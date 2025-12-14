@@ -81,11 +81,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// minimal choice: first endpoint (TODO: plug LB)
-	base := g.balancers[route.Service].Next()
-	if base == nil {
+	ep := g.balancers[route.Service].Next()
+	if ep == nil {
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
+	base := ep.URL()
 	tr := g.Transports.Get(svc.Name)
 
 	// upstream URL = base + path
@@ -128,6 +129,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resUp, err := tr.RoundTrip(reqUp)
 	if err != nil {
 		log.Printf("upstream error: %v", err)
+		ep.Feedback(false)
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
@@ -136,6 +138,12 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			log.Printf("error closing upstream body: %v", err)
 		}
 	}(resUp.Body)
+
+	if resUp.StatusCode >= 500 {
+		ep.Feedback(false)
+	} else {
+		ep.Feedback(true)
+	}
 
 	dropHopByHop(resUp.Header)
 	copyHeaders(lw.Header(), resUp.Header)

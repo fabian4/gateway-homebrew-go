@@ -16,4 +16,12 @@ Defaults if not specified:
 - `upstream`: 0 (no timeout, but `dial_timeout` applies)
 
 ## Passive-Health
-> TODO: Error classification, counters, temporary de-preference/skip policy.
+
+The gateway implements a basic passive health check mechanism (circuit breaker) for upstream endpoints.
+
+- **Failure Detection**: If an upstream request fails (network error or 5xx status code), the failure count for that endpoint is incremented.
+- **Threshold**: If an endpoint fails **3 consecutive times**, it is marked as unhealthy.
+- **Skip Policy**: Unhealthy endpoints are skipped (de-preferenced) for **10 seconds**. After this period, they are eligible for selection again (probing).
+- **Success Reset**: A successful response (status < 500) resets the failure count and clears the unhealthy status.
+
+This behavior is currently hardcoded but ensures that failing upstreams do not impact overall service availability if healthy endpoints are available.
