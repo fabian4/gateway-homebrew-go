@@ -232,3 +232,60 @@ func TestGateway_AccessLog(t *testing.T) {
 		t.Errorf("log time: got zero, want non-zero")
 	}
 }
+
+func TestGateway_GRPCTrailers(t *testing.T) {
+	// Mock upstream that sends trailers
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Trailer", "Grpc-Status, Grpc-Message")
+		w.Header().Set("Content-Type", "application/grpc")
+		w.WriteHeader(200)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		_, _ = w.Write([]byte("data"))
+		w.Header().Set("Grpc-Status", "0")
+		w.Header().Set("Grpc-Message", "OK")
+	}))
+	defer up.Close()
+	upURL := mustURL(t, up.URL)
+
+	svcs := map[string]model.Service{
+		"grpc": {Name: "grpc", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	}
+	rs := []model.Route{
+		{
+			Name:       "r1",
+			Host:       "grpc.local",
+			PathPrefix: "/",
+			Service:    "grpc",
+		},
+	}
+	rt := router.New(rs)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil)
+
+	req := httptest.NewRequest("POST", "http://gw.local/grpc.health.v1.Health/Check", nil)
+	req.Host = "grpc.local"
+	req.Header.Set("Content-Type", "application/grpc")
+	req.Header.Set("TE", "trailers")
+
+	rr := httptest.NewRecorder()
+	gw.ServeHTTP(rr, req)
+
+	res := rr.Result()
+	defer func() { _ = res.Body.Close() }()
+
+	if res.StatusCode != 200 {
+		t.Fatalf("status: got %d, want 200", res.StatusCode)
+	}
+	// Read body to ensure trailers are processed
+	_, _ = bytes.NewBuffer(rr.Body.Bytes()).ReadFrom(res.Body)
+
+	// httptest.ResponseRecorder captures trailers in HeaderMap if they are sent after body?
+	// Actually, for http.Response, they are in Trailer map.
+	// But httptest.Recorder might behave slightly differently depending on how it's used.
+	// Let's check the Trailer map on the result.
+	status := res.Trailer.Get("Grpc-Status")
+	if status != "0" {
+		t.Errorf("Grpc-Status trailer: got %q, want 0", status)
+	}
+}

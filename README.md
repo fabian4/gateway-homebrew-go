@@ -21,7 +21,7 @@
 ### v0.2.0 - Inbound TLS & HTTP/2/gRPC
 - [x] [TLS termination (SNI, multiple certs)](docs/tls-terminator.md)
 - [x] [ALPN: h2/http1.1](docs/h2-grpc.md#alpn)
-- [ ] [Basic gRPC pass-through](docs/h2-grpc.md#grpc-pass-through)
+- [x] [Basic gRPC pass-through](docs/h2-grpc.md#grpc-pass-through)
 
 ### v0.3.0 - Upstream Security & Passive Health
 - [ ] [Per-cluster: none / TLS / mTLS](docs/upstream-security.md)

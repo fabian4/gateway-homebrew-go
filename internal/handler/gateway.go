@@ -139,8 +139,31 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	dropHopByHop(resUp.Header)
 	copyHeaders(lw.Header(), resUp.Header)
+
+	// Announce trailers if any
+	if len(resUp.Trailer) > 0 {
+		trailerKeys := make([]string, 0, len(resUp.Trailer))
+		for k := range resUp.Trailer {
+			trailerKeys = append(trailerKeys, k)
+		}
+		lw.Header().Set("Trailer", strings.Join(trailerKeys, ","))
+	}
+
 	lw.WriteHeader(resUp.StatusCode)
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
+
 	_, _ = io.Copy(lw, resUp.Body)
+
+	// Copy trailer values
+	if len(resUp.Trailer) > 0 {
+		for k, vv := range resUp.Trailer {
+			for _, v := range vv {
+				lw.Header().Add(k, v)
+			}
+		}
+	}
 }
 
 // --- helpers ---
@@ -199,6 +222,9 @@ func dropHopByHop(h http.Header) {
 		}
 	}
 	for k := range hopByHop {
+		if k == "TE" && h.Get("TE") == "trailers" {
+			continue
+		}
 		h.Del(k)
 	}
 }
@@ -261,4 +287,10 @@ func (w *loggingResponseWriter) Write(b []byte) (int, error) {
 	n, err := w.ResponseWriter.Write(b)
 	w.bytes += int64(n)
 	return n, err
+}
+
+func (w *loggingResponseWriter) Flush() {
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
 }

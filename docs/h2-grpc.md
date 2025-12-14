@@ -11,4 +11,11 @@ The gateway automatically negotiates the application-layer protocol using ALPN (
     - Otherwise, it falls back to `http/1.1`.
 
 ## gRPC Pass-through
-> TODO: Keepalive, headers/metadata, and hop-by-hop considerations.
+
+The gateway supports basic gRPC pass-through by:
+- Supporting HTTP/2 (via ALPN).
+- Preserving `TE: trailers` header.
+- Flushing response headers immediately.
+- Copying response trailers to the downstream client.
+
+This allows standard gRPC unary and streaming calls to work transparently.

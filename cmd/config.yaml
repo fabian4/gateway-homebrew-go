@@ -38,6 +38,10 @@ services:
     endpoints:
       - { url: "http://127.0.0.1:19001", weight: 3 }
       - { url: "http://127.0.0.1:19002", weight: 1 }
+  # - name: grpc-service
+  #   proto: auto  # use 'auto' for TLS upstream (h2) or 'http1' for standard proxy
+  #   endpoints:
+  #     - "https://grpc.example.com:443"
 
 routes:
   # exact host + more specific prefix
@@ -81,3 +85,10 @@ routes:
       host: "lb.example.com"
       path_prefix: "/"
     service: backend-weighted
+
+  # gRPC example
+  # - name: grpc-route
+  #   match:
+  #     host: "grpc.example.com"
+  #     path_prefix: "/"
+  #   service: grpc-service
