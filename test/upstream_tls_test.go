@@ -30,7 +30,7 @@ func TestUpstreamTLS_Insecure(t *testing.T) {
 	// 2. Start Upstream HTTPS Server
 	mux := http.NewServeMux()
 	mux.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong-secure"))
+		_, _ = w.Write([]byte("pong-secure"))
 	})
 
 	// Load certs for server
@@ -49,7 +49,7 @@ func TestUpstreamTLS_Insecure(t *testing.T) {
 
 	// 3. Config Gateway
 	configFile := filepath.Join(tmpDir, "config.yaml")
-	configContent := fmt.Sprintf(`
+	configContent := `
 entrypoint:
   - name: web
     address: ":18081"
@@ -62,7 +62,7 @@ services:
 routes:
   - match: { path_prefix: "/" }
     service: secure-upstream
-`)
+`
 	if err := os.WriteFile(configFile, []byte(configContent), 0644); err != nil {
 		t.Fatalf("write config: %v", err)
 	}
@@ -109,21 +109,31 @@ func TestUpstreamTLS_mTLS(t *testing.T) {
 	clientCert := filepath.Join(tmpDir, "client.crt")
 
 	// CA
-	exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", caKey, "-out", caCert, "-days", "1", "-nodes", "-subj", "/CN=MyCA").Run()
+	if err := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-keyout", caKey, "-out", caCert, "-days", "1", "-nodes", "-subj", "/CN=MyCA").Run(); err != nil {
+		t.Fatalf("ca gen: %v", err)
+	}
 
 	// Server
-	exec.Command("openssl", "req", "-newkey", "rsa:2048", "-keyout", serverKey, "-out", filepath.Join(tmpDir, "server.csr"), "-nodes", "-subj", "/CN=server.local").Run()
-	exec.Command("openssl", "x509", "-req", "-in", filepath.Join(tmpDir, "server.csr"), "-CA", caCert, "-CAkey", caKey, "-CAcreateserial", "-out", serverCert, "-days", "1").Run()
+	if err := exec.Command("openssl", "req", "-newkey", "rsa:2048", "-keyout", serverKey, "-out", filepath.Join(tmpDir, "server.csr"), "-nodes", "-subj", "/CN=server.local").Run(); err != nil {
+		t.Fatalf("server csr: %v", err)
+	}
+	if err := exec.Command("openssl", "x509", "-req", "-in", filepath.Join(tmpDir, "server.csr"), "-CA", caCert, "-CAkey", caKey, "-CAcreateserial", "-out", serverCert, "-days", "1").Run(); err != nil {
+		t.Fatalf("server cert: %v", err)
+	}
 
 	// Client
-	exec.Command("openssl", "req", "-newkey", "rsa:2048", "-keyout", clientKey, "-out", filepath.Join(tmpDir, "client.csr"), "-nodes", "-subj", "/CN=client").Run()
-	exec.Command("openssl", "x509", "-req", "-in", filepath.Join(tmpDir, "client.csr"), "-CA", caCert, "-CAkey", caKey, "-CAcreateserial", "-out", clientCert, "-days", "1").Run()
+	if err := exec.Command("openssl", "req", "-newkey", "rsa:2048", "-keyout", clientKey, "-out", filepath.Join(tmpDir, "client.csr"), "-nodes", "-subj", "/CN=client").Run(); err != nil {
+		t.Fatalf("client csr: %v", err)
+	}
+	if err := exec.Command("openssl", "x509", "-req", "-in", filepath.Join(tmpDir, "client.csr"), "-CA", caCert, "-CAkey", caKey, "-CAcreateserial", "-out", clientCert, "-days", "1").Run(); err != nil {
+		t.Fatalf("client cert: %v", err)
+	}
 
 	// 2. Start Upstream HTTPS Server requiring mTLS
 	mux := http.NewServeMux()
 	mux.HandleFunc("/mtls", func(w http.ResponseWriter, r *http.Request) {
 		if len(r.TLS.PeerCertificates) > 0 {
-			w.Write([]byte("ok-mtls"))
+			_, _ = w.Write([]byte("ok-mtls"))
 		} else {
 			w.WriteHeader(403)
 		}
