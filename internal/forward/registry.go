@@ -85,6 +85,49 @@ func NewRegistry(opts Options) *Registry {
 	return r
 }
 
+// RegisterCustom builds and registers a transport with custom TLS settings.
+func (r *Registry) RegisterCustom(name string, tlsConfig *tls.Config, proto string) {
+	if name == "" {
+		return
+	}
+	// Clone base options but override TLS
+	// We reuse the logic from newHTTP1/newAuto but inject the TLS config.
+	// Since we don't want to duplicate all the code, let's refactor the builders.
+
+	dialer := &net.Dialer{
+		Timeout:   r.opts.DialTimeout,
+		KeepAlive: r.opts.DialKeepAlive,
+	}
+
+	// Ensure NextProtos matches proto
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{}
+	}
+	if proto == ProtoAuto {
+		tlsConfig.NextProtos = []string{"h2", "http/1.1"}
+	} else {
+		tlsConfig.NextProtos = []string{"http/1.1"}
+	}
+
+	tr := &http.Transport{
+		Proxy:                 http.ProxyFromEnvironment,
+		DialContext:           dialer.DialContext,
+		ForceAttemptHTTP2:     (proto == ProtoAuto),
+		TLSClientConfig:       tlsConfig,
+		MaxIdleConns:          r.opts.MaxIdleConns,
+		MaxIdleConnsPerHost:   r.opts.MaxIdleConnsPerHost,
+		IdleConnTimeout:       r.opts.IdleConnTimeout,
+		MaxConnsPerHost:       r.opts.MaxConnsPerHost,
+		TLSHandshakeTimeout:   r.opts.TLSHandshakeTimeout,
+		ExpectContinueTimeout: r.opts.ExpectContinueTimeout,
+	}
+	if r.opts.ResponseHeaderTimeout > 0 {
+		tr.ResponseHeaderTimeout = r.opts.ResponseHeaderTimeout
+	}
+
+	r.Register(name, tr)
+}
+
 func (r *Registry) Get(name string) http.RoundTripper {
 	r.mu.RLock()
 	rt, ok := r.store[name]

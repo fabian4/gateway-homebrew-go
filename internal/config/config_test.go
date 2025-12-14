@@ -201,3 +201,32 @@ tls:
 		t.Errorf("key_file: got %q, want %q", got, want)
 	}
 }
+
+func TestLoad_UpstreamTLS(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["https://e1:443"]
+    tls:
+      insecure_skip_verify: true
+      ca_file: "/tmp/ca.crt"
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	svc := cfg.Services["s1"]
+	if svc.TLS == nil {
+		t.Fatal("service TLS is nil")
+	}
+	if !svc.TLS.InsecureSkipVerify {
+		t.Error("insecure_skip_verify: got false, want true")
+	}
+	if got, want := svc.TLS.CAFile, "/tmp/ca.crt"; got != want {
+		t.Errorf("ca_file: got %q, want %q", got, want)
+	}
+}

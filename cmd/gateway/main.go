@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"flag"
 	"log"
 	"net/http"
@@ -29,6 +30,38 @@ func main() {
 
 	rt := router.New(c.Routes)
 	reg := fwd.NewDefaultRegistry()
+
+	// Register transports for each service
+	for _, svc := range c.Services {
+		if svc.TLS != nil {
+			tlsConf := &tls.Config{
+				InsecureSkipVerify: svc.TLS.InsecureSkipVerify,
+			}
+			if svc.TLS.CAFile != "" {
+				caCert, err := os.ReadFile(svc.TLS.CAFile)
+				if err != nil {
+					log.Fatalf("service %s: read ca_file: %v", svc.Name, err)
+				}
+				caPool := x509.NewCertPool()
+				if ok := caPool.AppendCertsFromPEM(caCert); !ok {
+					log.Fatalf("service %s: failed to parse ca_file", svc.Name)
+				}
+				tlsConf.RootCAs = caPool
+			}
+			if svc.TLS.CertFile != "" && svc.TLS.KeyFile != "" {
+				cert, err := tls.LoadX509KeyPair(svc.TLS.CertFile, svc.TLS.KeyFile)
+				if err != nil {
+					log.Fatalf("service %s: load cert/key: %v", svc.Name, err)
+				}
+				tlsConf.Certificates = []tls.Certificate{cert}
+			}
+			reg.RegisterCustom(svc.Name, tlsConf, svc.Proto)
+		} else {
+			// Use shared transport
+			reg.Register(svc.Name, reg.Get(svc.Proto))
+		}
+	}
+
 	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout)
 
 	srv := &http.Server{

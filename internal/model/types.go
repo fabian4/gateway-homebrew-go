@@ -7,7 +7,15 @@ type Service struct {
 	Name      string
 	Proto     string     // "http1" | "auto" | "h2c" (future: "h2","h3")
 	Endpoints []Endpoint // normalized, non-empty
-	// TODO: LB policy, healthcheck, mTLS...
+	TLS       *UpstreamTLS
+	// TODO: LB policy, healthcheck...
+}
+
+type UpstreamTLS struct {
+	InsecureSkipVerify bool
+	CAFile             string
+	CertFile           string
+	KeyFile            string
 }
 
 type Endpoint struct {

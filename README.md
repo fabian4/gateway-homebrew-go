@@ -24,7 +24,7 @@
 - [x] [Basic gRPC pass-through](docs/h2-grpc.md#grpc-pass-through)
 
 ### v0.3.0 - Upstream Security & Passive Health
-- [ ] [Per-cluster: none / TLS / mTLS](docs/upstream-security.md)
+- [x] [Per-cluster: none / TLS / mTLS](docs/upstream-security.md)
 - [ ] [Passive failure stats (de-preference/skip)](docs/reliability-basics.md#passive-health)
 
 ### v0.4.0 - L4 TCP Passthrough

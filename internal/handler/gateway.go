@@ -86,7 +86,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
-	tr := g.Transports.Get(svc.Proto)
+	tr := g.Transports.Get(svc.Name)
 
 	// upstream URL = base + path
 	u := new(url.URL)

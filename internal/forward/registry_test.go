@@ -1,6 +1,7 @@
 package forward
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"net/http"
 	"testing"
@@ -232,5 +233,41 @@ func TestRegistry_WithResponseHeaderTimeout(t *testing.T) {
 
 	if tr.ResponseHeaderTimeout != 10*time.Second {
 		t.Errorf("ResponseHeaderTimeout: got %v, want %v", tr.ResponseHeaderTimeout, 10*time.Second)
+	}
+}
+
+func TestRegistry_RegisterCustom(t *testing.T) {
+	reg := NewDefaultRegistry()
+
+	// Register custom transport with insecure skip verify
+	tlsConfig := &tls.Config{InsecureSkipVerify: true}
+	reg.RegisterCustom("custom-tls", tlsConfig, ProtoHTTP1)
+
+	rt := reg.Get("custom-tls")
+	if rt == nil {
+		t.Fatal("Get(custom-tls) returned nil")
+	}
+
+	tr, ok := rt.(*http.Transport)
+	if !ok {
+		t.Fatal("expected *http.Transport")
+	}
+
+	if !tr.TLSClientConfig.InsecureSkipVerify {
+		t.Error("InsecureSkipVerify should be true")
+	}
+	if tr.ForceAttemptHTTP2 {
+		t.Error("ForceAttemptHTTP2 should be false for http1")
+	}
+
+	// Register custom transport with auto proto (h2)
+	reg.RegisterCustom("custom-h2", nil, ProtoAuto)
+	rt2 := reg.Get("custom-h2")
+	tr2, ok := rt2.(*http.Transport)
+	if !ok {
+		t.Fatal("expected *http.Transport")
+	}
+	if !tr2.ForceAttemptHTTP2 {
+		t.Error("ForceAttemptHTTP2 should be true for auto")
 	}
 }

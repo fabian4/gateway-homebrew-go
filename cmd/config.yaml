@@ -42,6 +42,10 @@ services:
   #   proto: auto  # use 'auto' for TLS upstream (h2) or 'http1' for standard proxy
   #   endpoints:
   #     - "https://grpc.example.com:443"
+  #   tls:
+  #     ca_file: "./certs/ca.crt"
+  #     cert_file: "./certs/client.crt"
+  #     key_file: "./certs/client.key"
 
 routes:
   # exact host + more specific prefix

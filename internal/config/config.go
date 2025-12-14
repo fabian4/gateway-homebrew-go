@@ -22,6 +22,12 @@ type rawConfig struct {
 		Name      string `yaml:"name"`
 		Proto     string `yaml:"proto"`
 		Endpoints []any  `yaml:"endpoints"`
+		TLS       struct {
+			InsecureSkipVerify bool   `yaml:"insecure_skip_verify"`
+			CAFile             string `yaml:"ca_file"`
+			CertFile           string `yaml:"cert_file"`
+			KeyFile            string `yaml:"key_file"`
+		} `yaml:"tls"`
 	} `yaml:"services"`
 	Routes []struct {
 		Name  string `yaml:"name"`
@@ -144,10 +150,20 @@ func Load(path string) (*Config, error) {
 		if _, dup := svcs[name]; dup {
 			return nil, fmt.Errorf("services: duplicate name %q", name)
 		}
+		var upstreamTLS *model.UpstreamTLS
+		if s.TLS.InsecureSkipVerify || s.TLS.CAFile != "" || s.TLS.CertFile != "" || s.TLS.KeyFile != "" {
+			upstreamTLS = &model.UpstreamTLS{
+				InsecureSkipVerify: s.TLS.InsecureSkipVerify,
+				CAFile:             s.TLS.CAFile,
+				CertFile:           s.TLS.CertFile,
+				KeyFile:            s.TLS.KeyFile,
+			}
+		}
 		svcs[name] = model.Service{
 			Name:      name,
 			Proto:     proto,
 			Endpoints: eps,
+			TLS:       upstreamTLS,
 		}
 	}
 	if len(svcs) == 0 {
