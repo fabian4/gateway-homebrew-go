@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## v0.4.0 - 2025-12-15
+- L4 TCP Passthrough: Port to cluster mapping
+- L4 Timeouts: Idle and connection timeout policies
+
 ## v0.3.0 - 2025-12-14
 - Upstream Security: Per-cluster TLS and mTLS support
 - Reliability: Passive health checks (circuit breaker) for upstream endpoints
