@@ -29,7 +29,7 @@
 
 ### v0.4.0 - L4 TCP Passthrough
 - [x] [Port → cluster mapping](docs/l4-proxy.md#port-to-cluster)
-- [ ] [Idle/overall timeout policies (L4)](docs/l4-proxy.md#timeouts)
+- [x] [Idle/overall timeout policies (L4)](docs/l4-proxy.md#timeouts)
 
 ### v0.5.0 - Minimal Observability
 - [ ] [Metrics: RPS, 4xx/5xx, upstream latency, active conns, route hits](docs/observability.md#metrics)

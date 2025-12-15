@@ -43,9 +43,11 @@ type rawConfig struct {
 		} `yaml:"options"`
 	} `yaml:"routes"`
 	Timeouts struct {
-		Read     string `yaml:"read"`
-		Write    string `yaml:"write"`
-		Upstream string `yaml:"upstream"`
+		Read          string `yaml:"read"`
+		Write         string `yaml:"write"`
+		Upstream      string `yaml:"upstream"`
+		TCPIdle       string `yaml:"tcp_idle"`
+		TCPConnection string `yaml:"tcp_connection"`
 	} `yaml:"timeouts"`
 	TLS struct {
 		Enabled      bool `yaml:"enabled"`
@@ -76,14 +78,17 @@ type Certificate struct {
 }
 
 type Timeouts struct {
-	Read     time.Duration
-	Write    time.Duration
-	Upstream time.Duration
+	Read          time.Duration
+	Write         time.Duration
+	Upstream      time.Duration
+	TCPIdle       time.Duration
+	TCPConnection time.Duration
 }
 
 const (
-	DefaultReadTimeout  = 15 * time.Second
-	DefaultWriteTimeout = 30 * time.Second
+	DefaultReadTimeout    = 15 * time.Second
+	DefaultWriteTimeout   = 30 * time.Second
+	DefaultTCPIdleTimeout = 5 * time.Minute
 )
 
 func Load(path string) (*Config, error) {
@@ -259,6 +264,22 @@ func Load(path string) (*Config, error) {
 			return nil, fmt.Errorf("timeouts.upstream: %v", err)
 		}
 		timeouts.Upstream = d
+	}
+
+	timeouts.TCPIdle = DefaultTCPIdleTimeout
+	if rc.Timeouts.TCPIdle != "" {
+		d, err := time.ParseDuration(rc.Timeouts.TCPIdle)
+		if err != nil {
+			return nil, fmt.Errorf("timeouts.tcp_idle: %v", err)
+		}
+		timeouts.TCPIdle = d
+	}
+	if rc.Timeouts.TCPConnection != "" {
+		d, err := time.ParseDuration(rc.Timeouts.TCPConnection)
+		if err != nil {
+			return nil, fmt.Errorf("timeouts.tcp_connection: %v", err)
+		}
+		timeouts.TCPConnection = d
 	}
 
 	// tls

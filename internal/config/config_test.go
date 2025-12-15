@@ -133,6 +133,31 @@ timeouts:
 	}
 }
 
+func TestLoad_TCPTimeouts(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["tcp://e1:80"]
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+timeouts:
+  tcp_idle: 10m
+  tcp_connection: 2h
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Timeouts.TCPIdle.Minutes() != 10 {
+		t.Errorf("tcp_idle: got %v, want 10m", cfg.Timeouts.TCPIdle)
+	}
+	if cfg.Timeouts.TCPConnection.Hours() != 2 {
+		t.Errorf("tcp_connection: got %v, want 2h", cfg.Timeouts.TCPConnection)
+	}
+}
+
 func TestLoad_Errors(t *testing.T) {
 	// missing service reference
 	yml := `

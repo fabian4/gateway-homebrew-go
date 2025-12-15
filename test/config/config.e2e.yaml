@@ -9,6 +9,8 @@ timeouts:
   read: 5s
   write: 5s
   upstream: 500ms
+  tcp_idle: 5m
+  tcp_connection: 1h
 
 services:
   - name: u1

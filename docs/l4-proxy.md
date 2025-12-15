@@ -26,7 +26,16 @@ In this example:
 - Traffic on port 3306 is forwarded via TCP to `mysql-cluster`.
 
 ## Timeouts
-> TODO: Idle timeout vs overall session TTL; half-close handling.
+You can configure idle and overall connection timeouts for L4 proxies in the `timeouts` section of the config.
+
+```yaml
+timeouts:
+  tcp_idle: 5m        # Close connection if no data transferred for 5 minutes (default)
+  tcp_connection: 1h  # Hard limit on connection duration (default: 0/unlimited)
+```
+
+- `tcp_idle`: Resets on every read/write operation.
+- `tcp_connection`: Absolute duration from connection acceptance until forced closure.
 
 ## SNI-Mapping
 > TODO: (Unreleased) SNI to cluster hints and limitations.

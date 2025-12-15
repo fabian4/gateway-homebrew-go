@@ -79,7 +79,7 @@ func main() {
 				log.Fatalf("listener %s: service %s not found", l.Name, l.Service)
 			}
 			balancer := lb.NewSmoothWRR(svc.Endpoints)
-			proxy := handler.NewTCPProxy(balancer)
+			proxy := handler.NewTCPProxy(balancer, c.Timeouts.TCPIdle, c.Timeouts.TCPConnection)
 
 			ln, err := net.Listen("tcp", l.Address)
 			if err != nil {

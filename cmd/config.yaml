@@ -18,6 +18,8 @@ timeouts:
   read: 15s
   write: 30s
   upstream: 10s
+  tcp_idle: 5m
+  tcp_connection: 0s # unlimited
 
 services:
   - name: api-v1
