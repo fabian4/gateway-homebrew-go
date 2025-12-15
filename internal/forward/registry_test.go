@@ -271,3 +271,39 @@ func TestRegistry_RegisterCustom(t *testing.T) {
 		t.Error("ForceAttemptHTTP2 should be true for auto")
 	}
 }
+
+func TestRegistry_CustomOptions(t *testing.T) {
+	opts := Options{
+		MaxIdleConns:        1000,
+		MaxIdleConnsPerHost: 100,
+		IdleConnTimeout:     5 * time.Minute,
+	}
+	reg := NewRegistry(opts)
+
+	// Check http1
+	rt := reg.Get(ProtoHTTP1)
+	tr, ok := rt.(*http.Transport)
+	if !ok {
+		t.Fatal("expected *http.Transport")
+	}
+	if tr.MaxIdleConns != 1000 {
+		t.Errorf("MaxIdleConns: got %d, want 1000", tr.MaxIdleConns)
+	}
+	if tr.MaxIdleConnsPerHost != 100 {
+		t.Errorf("MaxIdleConnsPerHost: got %d, want 100", tr.MaxIdleConnsPerHost)
+	}
+	if tr.IdleConnTimeout != 5*time.Minute {
+		t.Errorf("IdleConnTimeout: got %v, want %v", tr.IdleConnTimeout, 5*time.Minute)
+	}
+
+	// Check RegisterCustom inherits options
+	reg.RegisterCustom("custom", nil, ProtoHTTP1)
+	rtCustom := reg.Get("custom")
+	trCustom, ok := rtCustom.(*http.Transport)
+	if !ok {
+		t.Fatal("expected *http.Transport")
+	}
+	if trCustom.MaxIdleConns != 1000 {
+		t.Errorf("custom MaxIdleConns: got %d, want 1000", trCustom.MaxIdleConns)
+	}
+}

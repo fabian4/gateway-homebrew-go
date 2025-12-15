@@ -63,6 +63,16 @@ type rawConfig struct {
 		Fields   []string `yaml:"fields"`
 		Sampling *float64 `yaml:"sampling"`
 	} `yaml:"access_log"`
+	Transport struct {
+		MaxIdleConns        int    `yaml:"max_idle_conns"`
+		MaxIdleConnsPerHost int    `yaml:"max_idle_conns_per_host"`
+		IdleConnTimeout     string `yaml:"idle_conn_timeout"`
+		DialTimeout         string `yaml:"dial_timeout"`
+		DialKeepAlive       string `yaml:"dial_keep_alive"`
+	} `yaml:"transport"`
+	Benchmark struct {
+		Enabled bool `yaml:"enabled"`
+	} `yaml:"benchmark"`
 }
 
 type Config struct {
@@ -74,6 +84,20 @@ type Config struct {
 	TLS       TLSConfig
 	Metrics   MetricsConfig
 	AccessLog AccessLogConfig
+	Transport TransportConfig
+	Benchmark BenchmarkConfig
+}
+
+type BenchmarkConfig struct {
+	Enabled bool
+}
+
+type TransportConfig struct {
+	MaxIdleConns        int
+	MaxIdleConnsPerHost int
+	IdleConnTimeout     time.Duration
+	DialTimeout         time.Duration
+	DialKeepAlive       time.Duration
 }
 
 type MetricsConfig struct {
@@ -327,6 +351,47 @@ func Load(path string) (*Config, error) {
 		accessLog.Sampling = 1.0 // default 100%
 	}
 
+	// transport
+	var transport TransportConfig
+	transport.MaxIdleConns = rc.Transport.MaxIdleConns
+	if transport.MaxIdleConns == 0 {
+		transport.MaxIdleConns = 512 // default
+	}
+	transport.MaxIdleConnsPerHost = rc.Transport.MaxIdleConnsPerHost
+	if transport.MaxIdleConnsPerHost == 0 {
+		transport.MaxIdleConnsPerHost = 128 // default
+	}
+
+	if rc.Transport.IdleConnTimeout != "" {
+		d, err := time.ParseDuration(rc.Transport.IdleConnTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("transport.idle_conn_timeout: %v", err)
+		}
+		transport.IdleConnTimeout = d
+	} else {
+		transport.IdleConnTimeout = 90 * time.Second
+	}
+
+	if rc.Transport.DialTimeout != "" {
+		d, err := time.ParseDuration(rc.Transport.DialTimeout)
+		if err != nil {
+			return nil, fmt.Errorf("transport.dial_timeout: %v", err)
+		}
+		transport.DialTimeout = d
+	} else {
+		transport.DialTimeout = 5 * time.Second
+	}
+
+	if rc.Transport.DialKeepAlive != "" {
+		d, err := time.ParseDuration(rc.Transport.DialKeepAlive)
+		if err != nil {
+			return nil, fmt.Errorf("transport.dial_keep_alive: %v", err)
+		}
+		transport.DialKeepAlive = d
+	} else {
+		transport.DialKeepAlive = 60 * time.Second
+	}
+
 	return &Config{
 		Listen:    listen,
 		Listeners: listeners,
@@ -336,5 +401,7 @@ func Load(path string) (*Config, error) {
 		TLS:       tlsConfig,
 		Metrics:   MetricsConfig{Address: rc.Metrics.Address},
 		AccessLog: accessLog,
+		Transport: transport,
+		Benchmark: BenchmarkConfig{Enabled: rc.Benchmark.Enabled},
 	}, nil
 }

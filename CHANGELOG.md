@@ -3,6 +3,7 @@
 ## v0.5.0 - Unreleased
 - Metrics: Prometheus-compatible endpoint (requests, latency, active connections)
 - Access Log: Sampling and field filtering support
+- Benchmark: Control knobs for transport (idle conns, timeouts) and benchmark mode
 
 ## v0.4.0 - 2025-12-15
 - L4 TCP Passthrough: Port to cluster mapping

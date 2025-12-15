@@ -47,7 +47,16 @@ func main() {
 	}
 
 	rt := router.New(c.Routes)
-	reg := fwd.NewDefaultRegistry()
+
+	// Transport options
+	fwdOpts := fwd.DefaultOptions()
+	fwdOpts.MaxIdleConns = c.Transport.MaxIdleConns
+	fwdOpts.MaxIdleConnsPerHost = c.Transport.MaxIdleConnsPerHost
+	fwdOpts.IdleConnTimeout = c.Transport.IdleConnTimeout
+	fwdOpts.DialTimeout = c.Transport.DialTimeout
+	fwdOpts.DialKeepAlive = c.Transport.DialKeepAlive
+
+	reg := fwd.NewRegistry(fwdOpts)
 
 	// Register transports for each service
 	for _, svc := range c.Services {
@@ -86,6 +95,9 @@ func main() {
 	var tcpListeners []net.Listener
 
 	log.Printf("gateway-homebrew-go %s starting...", version.Value)
+	if c.Benchmark.Enabled {
+		log.Printf("benchmark mode enabled (background tasks disabled)")
+	}
 
 	for _, l := range c.Listeners {
 		if l.Service != "" {

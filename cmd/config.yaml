@@ -21,6 +21,16 @@ access_log:
   sampling: 1.0 # 100%
   # fields: ["time", "method", "path", "status", "duration_ms", "upstream"]
 
+transport:
+  max_idle_conns: 512
+  max_idle_conns_per_host: 128
+  idle_conn_timeout: 90s
+  dial_timeout: 5s
+  dial_keep_alive: 60s
+
+benchmark:
+  enabled: false
+
 timeouts:
   read: 15s
   write: 30s
