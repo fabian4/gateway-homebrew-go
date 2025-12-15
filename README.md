@@ -33,7 +33,7 @@
 
 ### v0.5.0 - Minimal Observability
 - [x] [Metrics: RPS, 4xx/5xx, upstream latency, active conns, route hits](docs/observability.md#metrics)
-- [ ] [Access log fields & sampling](docs/observability.md#access-log)
+- [x] [Access log fields & sampling](docs/observability.md#access-log)
 - [ ] Benchmark control knobs (non-user-facing)
   - deterministic upstream connection policy (keepalive / idle timeout)
   - benchmark-friendly mode (disable hot reload, background tasks)

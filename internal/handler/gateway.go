@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"log"
+	"math/rand"
 	"net"
 	"net/http"
 	"net/textproto"
@@ -14,6 +15,7 @@ import (
 
 	"time"
 
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
@@ -28,10 +30,11 @@ type Gateway struct {
 	balancers       map[string]lb.Balancer
 	UpstreamTimeout time.Duration
 	AccessLog       io.Writer
+	AccessLogConfig config.AccessLogConfig
 	Metrics         *metrics.Registry
 }
 
-func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer, m *metrics.Registry) *Gateway {
+func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer, alc config.AccessLogConfig, m *metrics.Registry) *Gateway {
 	lbs := make(map[string]lb.Balancer)
 	for name, svc := range svcs {
 		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
@@ -39,7 +42,7 @@ func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, 
 	if accessLog == nil {
 		accessLog = io.Discard
 	}
-	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog, Metrics: m}
+	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog, AccessLogConfig: alc, Metrics: m}
 }
 
 var _ http.Handler = (*Gateway)(nil)
@@ -54,23 +57,84 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			status = http.StatusOK
 		}
 		duration := time.Since(start)
-		entry := AccessLog{
-			Time:         start,
-			Method:       r.Method,
-			Path:         r.URL.Path,
-			Protocol:     r.Proto,
-			Status:       status,
-			Duration:     duration.Milliseconds(),
-			RemoteIP:     r.RemoteAddr,
-			UserAgent:    r.UserAgent(),
-			Referer:      r.Referer(),
-			Service:      serviceName,
-			Upstream:     upstreamAddr,
-			BytesWritten: lw.bytes,
+
+		// Sampling
+		if g.AccessLogConfig.Sampling < 1.0 && rand.Float64() > g.AccessLogConfig.Sampling {
+			// skip logging
+		} else {
+			entry := AccessLog{
+				Time:         start,
+				Method:       r.Method,
+				Path:         r.URL.Path,
+				Protocol:     r.Proto,
+				Status:       status,
+				Duration:     duration.Milliseconds(),
+				RemoteIP:     r.RemoteAddr,
+				UserAgent:    r.UserAgent(),
+				Referer:      r.Referer(),
+				Service:      serviceName,
+				Upstream:     upstreamAddr,
+				BytesWritten: lw.bytes,
+			}
+
+			var logOutput any = entry
+			if len(g.AccessLogConfig.Fields) > 0 {
+				// Filter fields
+				m := make(map[string]any)
+				// We need to map struct fields to json tags manually or use reflection.
+				// Manual is faster and safer here since we know the struct.
+				// Or we can marshal to JSON and unmarshal to map, then filter? Too slow.
+				// Let's build the map manually based on requested fields.
+				allowed := make(map[string]bool)
+				for _, f := range g.AccessLogConfig.Fields {
+					allowed[f] = true
+				}
+
+				if allowed["time"] {
+					m["time"] = entry.Time
+				}
+				if allowed["method"] {
+					m["method"] = entry.Method
+				}
+				if allowed["path"] {
+					m["path"] = entry.Path
+				}
+				if allowed["protocol"] {
+					m["protocol"] = entry.Protocol
+				}
+				if allowed["status"] {
+					m["status"] = entry.Status
+				}
+				if allowed["duration_ms"] {
+					m["duration_ms"] = entry.Duration
+				}
+				if allowed["remote_ip"] {
+					m["remote_ip"] = entry.RemoteIP
+				}
+				if allowed["user_agent"] {
+					m["user_agent"] = entry.UserAgent
+				}
+				if allowed["referer"] {
+					m["referer"] = entry.Referer
+				}
+				if allowed["service"] {
+					m["service"] = entry.Service
+				}
+				if allowed["upstream"] {
+					m["upstream"] = entry.Upstream
+				}
+				if allowed["bytes_written"] {
+					m["bytes_written"] = entry.BytesWritten
+				}
+
+				logOutput = m
+			}
+
+			if err := json.NewEncoder(g.AccessLog).Encode(logOutput); err != nil {
+				log.Printf("access log: %v", err)
+			}
 		}
-		if err := json.NewEncoder(g.AccessLog).Encode(entry); err != nil {
-			log.Printf("access log: %v", err)
-		}
+
 		if g.Metrics != nil {
 			g.Metrics.IncRequest(serviceName, routeName, r.Method, strconv.Itoa(status))
 			g.Metrics.ObserveLatency(serviceName, routeName, duration)

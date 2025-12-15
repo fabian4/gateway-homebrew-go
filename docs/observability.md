@@ -3,6 +3,20 @@
 ## Access Log
 The gateway outputs structured access logs in JSON format to stdout.
 
+### Configuration
+You can configure sampling rate and select specific fields to log.
+
+```yaml
+access_log:
+  sampling: 1.0 # 0.0 to 1.0 (default 1.0)
+  fields:       # optional, list of fields to include. If empty, all fields are logged.
+    - time
+    - method
+    - path
+    - status
+    - duration_ms
+```
+
 ### Fields
 - `time`: Timestamp of the request (RFC3339)
 - `method`: HTTP method (GET, POST, etc.)

@@ -17,6 +17,10 @@ entrypoint:
 metrics:
   address: ":9090"
 
+access_log:
+  sampling: 1.0 # 100%
+  # fields: ["time", "method", "path", "status", "duration_ms", "upstream"]
+
 timeouts:
   read: 15s
   write: 30s

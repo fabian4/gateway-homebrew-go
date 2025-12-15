@@ -80,7 +80,7 @@ func main() {
 		}
 	}
 
-	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout, m)
+	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout, c.AccessLog, m)
 
 	var httpServers []*http.Server
 	var tcpListeners []net.Listener

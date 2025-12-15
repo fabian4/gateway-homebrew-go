@@ -8,6 +8,10 @@ entrypoint:
 metrics:
   address: ":9090"
 
+access_log:
+  sampling: 1.0
+  fields: ["time", "method", "path", "status", "duration_ms", "upstream", "service", "bytes_written"]
+
 timeouts:
   read: 5s
   write: 5s

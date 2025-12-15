@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
@@ -58,7 +59,7 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	// downstream request
 	req := httptest.NewRequest("GET", "http://gw.local/api/ping?x=1", nil)
@@ -122,7 +123,7 @@ func TestGateway_PreserveHost(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -159,7 +160,7 @@ func TestGateway_HostRewrite(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -196,7 +197,7 @@ func TestGateway_AccessLog(t *testing.T) {
 	rt := router.New(rs)
 
 	var buf bytes.Buffer
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "log.local"
@@ -263,7 +264,7 @@ func TestGateway_GRPCTrailers(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("POST", "http://gw.local/grpc.health.v1.Health/Check", nil)
 	req.Host = "grpc.local"
@@ -312,7 +313,7 @@ func TestGateway_Metrics(t *testing.T) {
 	}
 	rt := router.New(rs)
 	m := metrics.NewRegistry()
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, m)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, m)
 
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "metrics.local"
@@ -333,5 +334,56 @@ func TestGateway_Metrics(t *testing.T) {
 	}
 	if !strings.Contains(out, `upstream_latency_seconds_count{service="s1",route="r1"} 1`) {
 		t.Errorf("metrics missing latency count:\n%s", out)
+	}
+}
+
+func TestGateway_AccessLog_SamplingAndFields(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer up.Close()
+	upURL := mustURL(t, up.URL)
+
+	svcs := map[string]model.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	}
+	rs := []model.Route{
+		{Name: "r1", Host: "log.local", PathPrefix: "/", Service: "s1"},
+	}
+	rt := router.New(rs)
+
+	// 1. Test Sampling (0.0 -> no logs)
+	var buf bytes.Buffer
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 0.0}, nil)
+	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
+	req.Host = "log.local"
+	gw.ServeHTTP(httptest.NewRecorder(), req)
+	if buf.Len() > 0 {
+		t.Errorf("sampling 0.0: expected no log, got %s", buf.String())
+	}
+
+	// 2. Test Fields Filtering
+	buf.Reset()
+	gw = NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{
+		Sampling: 1.0,
+		Fields:   []string{"method", "status"},
+	}, nil)
+	gw.ServeHTTP(httptest.NewRecorder(), req)
+
+	var logMap map[string]interface{}
+	if err := json.Unmarshal(buf.Bytes(), &logMap); err != nil {
+		t.Fatalf("unmarshal log: %v", err)
+	}
+	if len(logMap) != 2 {
+		t.Errorf("fields filtering: expected 2 fields, got %d: %v", len(logMap), logMap)
+	}
+	if _, ok := logMap["method"]; !ok {
+		t.Errorf("fields filtering: missing method")
+	}
+	if _, ok := logMap["status"]; !ok {
+		t.Errorf("fields filtering: missing status")
+	}
+	if _, ok := logMap["path"]; ok {
+		t.Errorf("fields filtering: unexpected path")
 	}
 }

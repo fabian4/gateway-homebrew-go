@@ -59,6 +59,10 @@ type rawConfig struct {
 	Metrics struct {
 		Address string `yaml:"address"`
 	} `yaml:"metrics"`
+	AccessLog struct {
+		Fields   []string `yaml:"fields"`
+		Sampling *float64 `yaml:"sampling"`
+	} `yaml:"access_log"`
 }
 
 type Config struct {
@@ -69,10 +73,16 @@ type Config struct {
 	Timeouts  Timeouts
 	TLS       TLSConfig
 	Metrics   MetricsConfig
+	AccessLog AccessLogConfig
 }
 
 type MetricsConfig struct {
 	Address string
+}
+
+type AccessLogConfig struct {
+	Fields   []string
+	Sampling float64
 }
 
 type TLSConfig struct {
@@ -308,6 +318,15 @@ func Load(path string) (*Config, error) {
 		}
 	}
 
+	// access log
+	var accessLog AccessLogConfig
+	accessLog.Fields = rc.AccessLog.Fields
+	if rc.AccessLog.Sampling != nil {
+		accessLog.Sampling = *rc.AccessLog.Sampling
+	} else {
+		accessLog.Sampling = 1.0 // default 100%
+	}
+
 	return &Config{
 		Listen:    listen,
 		Listeners: listeners,
@@ -316,5 +335,6 @@ func Load(path string) (*Config, error) {
 		Timeouts:  timeouts,
 		TLS:       tlsConfig,
 		Metrics:   MetricsConfig{Address: rc.Metrics.Address},
+		AccessLog: accessLog,
 	}, nil
 }
