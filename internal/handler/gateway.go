@@ -9,12 +9,14 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"strconv"
 	"strings"
 
 	"time"
 
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/lb"
+	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 )
@@ -26,9 +28,10 @@ type Gateway struct {
 	balancers       map[string]lb.Balancer
 	UpstreamTimeout time.Duration
 	AccessLog       io.Writer
+	Metrics         *metrics.Registry
 }
 
-func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer) *Gateway {
+func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer, m *metrics.Registry) *Gateway {
 	lbs := make(map[string]lb.Balancer)
 	for name, svc := range svcs {
 		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
@@ -36,7 +39,7 @@ func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, 
 	if accessLog == nil {
 		accessLog = io.Discard
 	}
-	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog}
+	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog, Metrics: m}
 }
 
 var _ http.Handler = (*Gateway)(nil)
@@ -44,19 +47,20 @@ var _ http.Handler = (*Gateway)(nil)
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	lw := &loggingResponseWriter{ResponseWriter: w}
-	var serviceName, upstreamAddr string
+	var serviceName, upstreamAddr, routeName string
 	defer func() {
 		status := lw.statusCode
 		if status == 0 {
 			status = http.StatusOK
 		}
+		duration := time.Since(start)
 		entry := AccessLog{
 			Time:         start,
 			Method:       r.Method,
 			Path:         r.URL.Path,
 			Protocol:     r.Proto,
 			Status:       status,
-			Duration:     time.Since(start).Milliseconds(),
+			Duration:     duration.Milliseconds(),
 			RemoteIP:     r.RemoteAddr,
 			UserAgent:    r.UserAgent(),
 			Referer:      r.Referer(),
@@ -67,6 +71,10 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewEncoder(g.AccessLog).Encode(entry); err != nil {
 			log.Printf("access log: %v", err)
 		}
+		if g.Metrics != nil {
+			g.Metrics.IncRequest(serviceName, routeName, r.Method, strconv.Itoa(status))
+			g.Metrics.ObserveLatency(serviceName, routeName, duration)
+		}
 	}()
 
 	route := g.Routes.Match(r.Host, r.URL.Path)
@@ -75,6 +83,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	serviceName = route.Service
+	routeName = route.Name
 	svc, ok := g.Services[route.Service]
 	if !ok || len(svc.Endpoints) == 0 {
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)

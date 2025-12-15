@@ -17,6 +17,7 @@ import (
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/handler"
 	"github.com/fabian4/gateway-homebrew-go/internal/lb"
+	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 	"github.com/fabian4/gateway-homebrew-go/internal/version"
 )
@@ -28,6 +29,21 @@ func main() {
 	c, err := cfg.Load(*configPath)
 	if err != nil {
 		log.Fatalf("config: %v", err)
+	}
+
+	// Metrics
+	m := metrics.NewRegistry()
+	if c.Metrics.Address != "" {
+		go func() {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/metrics", func(w http.ResponseWriter, r *http.Request) {
+				m.WritePrometheus(w)
+			})
+			log.Printf("metrics listening on %s/metrics", c.Metrics.Address)
+			if err := http.ListenAndServe(c.Metrics.Address, mux); err != nil {
+				log.Printf("metrics server error: %v", err)
+			}
+		}()
 	}
 
 	rt := router.New(c.Routes)
@@ -64,7 +80,7 @@ func main() {
 		}
 	}
 
-	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout)
+	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout, m)
 
 	var httpServers []*http.Server
 	var tcpListeners []net.Listener
@@ -79,7 +95,7 @@ func main() {
 				log.Fatalf("listener %s: service %s not found", l.Name, l.Service)
 			}
 			balancer := lb.NewSmoothWRR(svc.Endpoints)
-			proxy := handler.NewTCPProxy(balancer, c.Timeouts.TCPIdle, c.Timeouts.TCPConnection)
+			proxy := handler.NewTCPProxy(balancer, c.Timeouts.TCPIdle, c.Timeouts.TCPConnection, m, l.Name, l.Service)
 
 			ln, err := net.Listen("tcp", l.Address)
 			if err != nil {

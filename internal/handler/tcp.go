@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/fabian4/gateway-homebrew-go/internal/lb"
+	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 )
 
 // TCPProxy handles L4 TCP proxying.
@@ -14,17 +15,27 @@ type TCPProxy struct {
 	Balancer          lb.Balancer
 	IdleTimeout       time.Duration
 	ConnectionTimeout time.Duration
+	Metrics           *metrics.Registry
+	ListenerName      string
+	ServiceName       string
 }
 
-func NewTCPProxy(balancer lb.Balancer, idleTimeout, connectionTimeout time.Duration) *TCPProxy {
+func NewTCPProxy(balancer lb.Balancer, idleTimeout, connectionTimeout time.Duration, m *metrics.Registry, listenerName, serviceName string) *TCPProxy {
 	return &TCPProxy{
 		Balancer:          balancer,
 		IdleTimeout:       idleTimeout,
 		ConnectionTimeout: connectionTimeout,
+		Metrics:           m,
+		ListenerName:      listenerName,
+		ServiceName:       serviceName,
 	}
 }
 
 func (p *TCPProxy) Handle(conn net.Conn) {
+	if p.Metrics != nil {
+		p.Metrics.IncActiveConns(p.ListenerName, p.ServiceName)
+		defer p.Metrics.DecActiveConns(p.ListenerName, p.ServiceName)
+	}
 	defer func() { _ = conn.Close() }()
 
 	// Overall connection timeout

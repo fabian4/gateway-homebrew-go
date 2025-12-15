@@ -32,7 +32,7 @@
 - [x] [Idle/overall timeout policies (L4)](docs/l4-proxy.md#timeouts)
 
 ### v0.5.0 - Minimal Observability
-- [ ] [Metrics: RPS, 4xx/5xx, upstream latency, active conns, route hits](docs/observability.md#metrics)
+- [x] [Metrics: RPS, 4xx/5xx, upstream latency, active conns, route hits](docs/observability.md#metrics)
 - [ ] [Access log fields & sampling](docs/observability.md#access-log)
 - [ ] Benchmark control knobs (non-user-facing)
   - deterministic upstream connection policy (keepalive / idle timeout)

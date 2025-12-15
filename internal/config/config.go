@@ -56,6 +56,9 @@ type rawConfig struct {
 			KeyFile  string `yaml:"key_file"`
 		} `yaml:"certificates"`
 	} `yaml:"tls"`
+	Metrics struct {
+		Address string `yaml:"address"`
+	} `yaml:"metrics"`
 }
 
 type Config struct {
@@ -65,6 +68,11 @@ type Config struct {
 	Routes    []model.Route
 	Timeouts  Timeouts
 	TLS       TLSConfig
+	Metrics   MetricsConfig
+}
+
+type MetricsConfig struct {
+	Address string
 }
 
 type TLSConfig struct {
@@ -307,5 +315,6 @@ func Load(path string) (*Config, error) {
 		Routes:    routes,
 		Timeouts:  timeouts,
 		TLS:       tlsConfig,
+		Metrics:   MetricsConfig{Address: rc.Metrics.Address},
 	}, nil
 }

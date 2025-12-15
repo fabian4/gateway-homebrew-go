@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
+	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 	"github.com/fabian4/gateway-homebrew-go/internal/model"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 )
@@ -56,7 +58,7 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
 
 	// downstream request
 	req := httptest.NewRequest("GET", "http://gw.local/api/ping?x=1", nil)
@@ -120,7 +122,7 @@ func TestGateway_PreserveHost(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -157,7 +159,7 @@ func TestGateway_HostRewrite(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -194,7 +196,7 @@ func TestGateway_AccessLog(t *testing.T) {
 	rt := router.New(rs)
 
 	var buf bytes.Buffer
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "log.local"
@@ -261,7 +263,7 @@ func TestGateway_GRPCTrailers(t *testing.T) {
 		},
 	}
 	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil)
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, nil)
 
 	req := httptest.NewRequest("POST", "http://gw.local/grpc.health.v1.Health/Check", nil)
 	req.Host = "grpc.local"
@@ -287,5 +289,49 @@ func TestGateway_GRPCTrailers(t *testing.T) {
 	status := res.Trailer.Get("Grpc-Status")
 	if status != "0" {
 		t.Errorf("Grpc-Status trailer: got %q, want 0", status)
+	}
+}
+
+func TestGateway_Metrics(t *testing.T) {
+	up := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	}))
+	defer up.Close()
+	upURL := mustURL(t, up.URL)
+
+	svcs := map[string]model.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	}
+	rs := []model.Route{
+		{
+			Name:       "r1",
+			Host:       "metrics.local",
+			PathPrefix: "/",
+			Service:    "s1",
+		},
+	}
+	rt := router.New(rs)
+	m := metrics.NewRegistry()
+	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, m)
+
+	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
+	req.Host = "metrics.local"
+	rr := httptest.NewRecorder()
+	gw.ServeHTTP(rr, req)
+
+	if rr.Code != 200 {
+		t.Fatalf("status: got %d, want 200", rr.Code)
+	}
+
+	// Verify metrics
+	var buf bytes.Buffer
+	m.WritePrometheus(&buf)
+	out := buf.String()
+
+	if !strings.Contains(out, `requests_total{service="s1",route="r1",method="GET",status="200"} 1`) {
+		t.Errorf("metrics missing requests_total:\n%s", out)
+	}
+	if !strings.Contains(out, `upstream_latency_seconds_count{service="s1",route="r1"} 1`) {
+		t.Errorf("metrics missing latency count:\n%s", out)
 	}
 }

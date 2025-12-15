@@ -18,4 +18,15 @@ The gateway outputs structured access logs in JSON format to stdout.
 - `bytes_written`: Number of bytes written to the response body
 
 ## Metrics
-> TODO: Define RPS, 4xx/5xx rates, upstream latency, active connections, route hits.
+The gateway exposes Prometheus-compatible metrics on a configured address (e.g. `:9090`).
+
+### Configuration
+```yaml
+metrics:
+  address: ":9090"
+```
+
+### Exposed Metrics
+- `requests_total`: Counter of HTTP requests (labels: `service`, `route`, `method`, `status`).
+- `upstream_latency_seconds`: Histogram of upstream response latency (labels: `service`, `route`).
+- `active_connections`: Gauge of active L4 TCP connections (labels: `listener`, `service`).

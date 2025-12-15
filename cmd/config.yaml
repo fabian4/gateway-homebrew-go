@@ -14,6 +14,9 @@ entrypoint:
 #     - cert_file: "./certs/other.com.crt"
 #       key_file: "./certs/other.com.key"
 
+metrics:
+  address: ":9090"
+
 timeouts:
   read: 15s
   write: 30s

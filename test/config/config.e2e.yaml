@@ -5,6 +5,9 @@ entrypoint:
     address: ":9000"
     service: tcp-echo
 
+metrics:
+  address: ":9090"
+
 timeouts:
   read: 5s
   write: 5s
