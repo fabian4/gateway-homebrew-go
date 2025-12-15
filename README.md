@@ -28,7 +28,7 @@
 - [x] [Passive failure stats (de-preference/skip)](docs/reliability-basics.md#passive-health)
 
 ### v0.4.0 - L4 TCP Passthrough
-- [ ] [Port → cluster mapping](docs/l4-proxy.md#port-to-cluster)
+- [x] [Port → cluster mapping](docs/l4-proxy.md#port-to-cluster)
 - [ ] [Idle/overall timeout policies (L4)](docs/l4-proxy.md#timeouts)
 
 ### v0.5.0 - Minimal Observability

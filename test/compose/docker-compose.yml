@@ -4,11 +4,13 @@ services:
     container_name: e2e-gateway
     ports:
       - "18080:8080"
+      - "19000:9000"
     volumes:
       - ../config/config.e2e.yaml:/etc/gateway/config.yaml:ro
     depends_on:
       - u1
       - u2
+      - tcp-echo
 
   u1:
     build:
@@ -35,3 +37,16 @@ services:
       - ECHO_ID=u2
     expose:
       - "9002"
+
+  tcp-echo:
+    build:
+      context: ../..
+      dockerfile: test/dockerfile/echo.Dockerfile
+      args:
+        PKG: ./examples/upstreams/tcp-echo
+    container_name: e2e-tcp
+    environment:
+      - TCP_ECHO_ADDR=:9003
+      - TCP_ECHO_GREETING=hello-tcp
+    expose:
+      - "9003"

@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"flag"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	cfg "github.com/fabian4/gateway-homebrew-go/internal/config"
 	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/handler"
+	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 	"github.com/fabian4/gateway-homebrew-go/internal/version"
 )
@@ -64,44 +66,83 @@ func main() {
 
 	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout)
 
-	srv := &http.Server{
-		Addr:              c.Listen,
-		Handler:           gw,
-		ReadTimeout:       c.Timeouts.Read,
-		ReadHeaderTimeout: 10 * time.Second,
-		WriteTimeout:      c.Timeouts.Write,
-		IdleTimeout:       60 * time.Second,
-	}
+	var httpServers []*http.Server
+	var tcpListeners []net.Listener
 
-	if c.TLS.Enabled {
-		tlsConfig := &tls.Config{
-			MinVersion: tls.VersionTLS12,
-			NextProtos: []string{"h2", "http/1.1"},
-		}
-		for _, cert := range c.TLS.Certificates {
-			c, err := tls.LoadX509KeyPair(cert.CertFile, cert.KeyFile)
+	log.Printf("gateway-homebrew-go %s starting...", version.Value)
+
+	for _, l := range c.Listeners {
+		if l.Service != "" {
+			// L4 TCP Proxy
+			svc, ok := c.Services[l.Service]
+			if !ok {
+				log.Fatalf("listener %s: service %s not found", l.Name, l.Service)
+			}
+			balancer := lb.NewSmoothWRR(svc.Endpoints)
+			proxy := handler.NewTCPProxy(balancer)
+
+			ln, err := net.Listen("tcp", l.Address)
 			if err != nil {
-				log.Fatalf("load cert %s: %v", cert.CertFile, err)
+				log.Fatalf("listener %s: listen tcp %s: %v", l.Name, l.Address, err)
 			}
-			tlsConfig.Certificates = append(tlsConfig.Certificates, c)
-		}
-		srv.TLSConfig = tlsConfig
-	}
+			tcpListeners = append(tcpListeners, ln)
 
-	log.Printf("gateway-homebrew-go %s listening on %s (routes=%d services=%d tls=%v)",
-		version.Value, c.Listen, len(c.Routes), len(c.Services), c.TLS.Enabled)
+			log.Printf("L4 listener %s on %s forwarding to %s", l.Name, l.Address, l.Service)
 
-	go func() {
-		if c.TLS.Enabled {
-			if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
-				log.Fatalf("listen tls: %v", err)
-			}
+			go func(ln net.Listener) {
+				for {
+					conn, err := ln.Accept()
+					if err != nil {
+						return
+					}
+					go proxy.Handle(conn)
+				}
+			}(ln)
+
 		} else {
-			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-				log.Fatalf("listen: %v", err)
+			// L7 HTTP Proxy
+			srv := &http.Server{
+				Addr:              l.Address,
+				Handler:           gw,
+				ReadTimeout:       c.Timeouts.Read,
+				ReadHeaderTimeout: 10 * time.Second,
+				WriteTimeout:      c.Timeouts.Write,
+				IdleTimeout:       60 * time.Second,
 			}
+
+			if c.TLS.Enabled {
+				tlsConfig := &tls.Config{
+					MinVersion: tls.VersionTLS12,
+					NextProtos: []string{"h2", "http/1.1"},
+				}
+				for _, cert := range c.TLS.Certificates {
+					c, err := tls.LoadX509KeyPair(cert.CertFile, cert.KeyFile)
+					if err != nil {
+						log.Fatalf("load cert %s: %v", cert.CertFile, err)
+					}
+					tlsConfig.Certificates = append(tlsConfig.Certificates, c)
+				}
+				srv.TLSConfig = tlsConfig
+			}
+
+			httpServers = append(httpServers, srv)
+
+			log.Printf("L7 listener %s on %s (routes=%d services=%d tls=%v)",
+				l.Name, l.Address, len(c.Routes), len(c.Services), c.TLS.Enabled)
+
+			go func(srv *http.Server) {
+				if c.TLS.Enabled {
+					if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+						log.Fatalf("listen tls: %v", err)
+					}
+				} else {
+					if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+						log.Fatalf("listen: %v", err)
+					}
+				}
+			}(srv)
 		}
-	}()
+	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -109,5 +150,11 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	_ = srv.Shutdown(shutdownCtx)
+
+	for _, srv := range httpServers {
+		_ = srv.Shutdown(shutdownCtx)
+	}
+	for _, ln := range tcpListeners {
+		_ = ln.Close()
+	}
 }

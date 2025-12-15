@@ -1,7 +1,29 @@
 ﻿# L4 TCP Proxy
 
 ## Port-to-Cluster
-> TODO: Static port mapping examples and edge cases.
+You can map a specific listener port directly to a service cluster for L4 TCP proxying.
+
+Example configuration:
+
+```yaml
+entrypoint:
+  - name: web
+    address: ":8080"
+  - name: mysql-proxy
+    address: ":3306"
+    service: mysql-cluster
+
+services:
+  - name: mysql-cluster
+    proto: tcp
+    endpoints:
+      - "tcp://10.0.0.1:3306"
+      - "tcp://10.0.0.2:3306"
+```
+
+In this example:
+- Traffic on port 8080 is handled by the L7 HTTP proxy (default behavior).
+- Traffic on port 3306 is forwarded via TCP to `mysql-cluster`.
 
 ## Timeouts
 > TODO: Idle timeout vs overall session TTL; half-close handling.

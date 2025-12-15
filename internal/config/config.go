@@ -17,6 +17,7 @@ type rawConfig struct {
 	EntryPoint []struct {
 		Name    string `yaml:"name"`
 		Address string `yaml:"address"`
+		Service string `yaml:"service"`
 	} `yaml:"entrypoint"`
 	Services []struct {
 		Name      string `yaml:"name"`
@@ -56,11 +57,12 @@ type rawConfig struct {
 }
 
 type Config struct {
-	Listen   string
-	Services map[string]model.Service
-	Routes   []model.Route
-	Timeouts Timeouts
-	TLS      TLSConfig
+	Listen    string
+	Listeners []model.Listener
+	Services  map[string]model.Service
+	Routes    []model.Route
+	Timeouts  Timeouts
+	TLS       TLSConfig
 }
 
 type TLSConfig struct {
@@ -95,10 +97,28 @@ func Load(path string) (*Config, error) {
 	}
 
 	// listen
-	listen := ":8080"
-	if len(rc.EntryPoint) > 0 && strings.TrimSpace(rc.EntryPoint[0].Address) != "" {
-		listen = strings.TrimSpace(rc.EntryPoint[0].Address)
+	var listeners []model.Listener
+	if len(rc.EntryPoint) > 0 {
+		for _, ep := range rc.EntryPoint {
+			addr := strings.TrimSpace(ep.Address)
+			if addr == "" {
+				addr = ":8080"
+			}
+			listeners = append(listeners, model.Listener{
+				Name:    strings.TrimSpace(ep.Name),
+				Address: addr,
+				Service: strings.TrimSpace(ep.Service),
+			})
+		}
+	} else {
+		listeners = append(listeners, model.Listener{
+			Name:    "default",
+			Address: ":8080",
+		})
 	}
+
+	// backward compatibility for Listen field (use first listener)
+	listen := listeners[0].Address
 
 	// services
 	svcs := make(map[string]model.Service)
@@ -112,7 +132,7 @@ func Load(path string) (*Config, error) {
 			proto = "http1"
 		}
 		switch proto {
-		case "http1", "auto", "h2c":
+		case "http1", "auto", "h2c", "tcp":
 		default:
 			return nil, fmt.Errorf("services[%d]: unknown proto %q", i, proto)
 		}
@@ -142,8 +162,8 @@ func Load(path string) (*Config, error) {
 			if err != nil {
 				return nil, fmt.Errorf("services[%d].endpoints[%d]: parse: %v", i, j, err)
 			}
-			if (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
-				return nil, fmt.Errorf("services[%d].endpoints[%d]: must be http(s) URL with host", i, j)
+			if (u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "tcp") || u.Host == "" {
+				return nil, fmt.Errorf("services[%d].endpoints[%d]: must be http(s) or tcp URL with host", i, j)
 			}
 			eps = append(eps, model.Endpoint{URL: u, Weight: weight})
 		}
@@ -260,10 +280,11 @@ func Load(path string) (*Config, error) {
 	}
 
 	return &Config{
-		Listen:   listen,
-		Services: svcs,
-		Routes:   routes,
-		Timeouts: timeouts,
-		TLS:      tlsConfig,
+		Listen:    listen,
+		Listeners: listeners,
+		Services:  svcs,
+		Routes:    routes,
+		Timeouts:  timeouts,
+		TLS:       tlsConfig,
 	}, nil
 }

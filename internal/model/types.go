@@ -32,3 +32,10 @@ type Route struct {
 	PreserveHost bool   // optional (default false)
 	HostRewrite  string // optional; if set, overrides PreserveHost
 }
+
+// Listener defines an entrypoint.
+type Listener struct {
+	Name    string
+	Address string
+	Service string // if non-empty, L4 TCP proxy to this service; else L7 HTTP
+}

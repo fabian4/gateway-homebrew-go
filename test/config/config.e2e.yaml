@@ -1,6 +1,9 @@
 entrypoint:
   - name: web
     address: ":8080"
+  - name: tcp-proxy
+    address: ":9000"
+    service: tcp-echo
 
 timeouts:
   read: 5s
@@ -22,6 +25,11 @@ services:
     endpoints:
       - { url: "http://u1:9001", weight: 3 }
       - { url: "http://u2:9002", weight: 1 }
+
+  - name: tcp-echo
+    proto: tcp
+    endpoints:
+      - "tcp://tcp-echo:9003"
 
 routes:
   - name: r-v1

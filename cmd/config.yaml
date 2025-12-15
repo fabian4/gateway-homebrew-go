@@ -1,6 +1,9 @@
 entrypoint:
   - name: web
     address: ":18080"
+  # - name: mysql-proxy
+  #   address: ":13306"
+  #   service: mysql-cluster
 
 # tls:
 #   enabled: true
@@ -38,6 +41,11 @@ services:
     endpoints:
       - { url: "http://127.0.0.1:19001", weight: 3 }
       - { url: "http://127.0.0.1:19002", weight: 1 }
+  # - name: mysql-cluster
+  #   proto: tcp
+  #   endpoints:
+  #     - "tcp://127.0.0.1:3306"
+
   # - name: grpc-service
   #   proto: auto  # use 'auto' for TLS upstream (h2) or 'http1' for standard proxy
   #   endpoints:
