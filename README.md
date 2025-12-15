@@ -34,6 +34,10 @@
 ### v0.5.0 - Minimal Observability
 - [ ] [Metrics: RPS, 4xx/5xx, upstream latency, active conns, route hits](docs/observability.md#metrics)
 - [ ] [Access log fields & sampling](docs/observability.md#access-log)
+- [ ] Benchmark control knobs (non-user-facing)
+  - deterministic upstream connection policy (keepalive / idle timeout)
+  - benchmark-friendly mode (disable hot reload, background tasks)
+
 
 ### v0.6.0 - Config Hot Reload
 - [ ] [Detect changes → validate → atomic swap → rollback](docs/config-hot-reload.md)
