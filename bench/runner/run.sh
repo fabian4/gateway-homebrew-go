@@ -29,6 +29,9 @@ echo "Running wrk..."
 # Load case definition
 source "bench/cases/$CASE.sh"
 
+# Ensure results directory exists
+mkdir -p bench/results
+
 # Run wrk
 wrk $WRK_ARGS http://127.0.0.1:8080/ > "bench/results/${CASE}_${GATEWAY}.txt"
 
