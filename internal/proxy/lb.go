@@ -1,11 +1,11 @@
-package lb
+package proxy
 
 import (
 	"net/url"
 	"sync"
 	"time"
 
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 )
 
 type Balancer interface {
@@ -32,7 +32,7 @@ type peer struct {
 	skipUntil time.Time
 }
 
-func NewSmoothWRR(endpoints []model.Endpoint) Balancer {
+func NewSmoothWRR(endpoints []config.Endpoint) Balancer {
 	peers := make([]*peer, len(endpoints))
 	for i, e := range endpoints {
 		w := e.Weight

@@ -1,18 +1,18 @@
-package router
+package proxy
 
 import (
 	"testing"
 
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 )
 
 func TestMatch_MultiHostAndLongestPrefix(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		{Name: "r1", Host: "app.example.com", PathPrefix: "/api", Service: "s1"},
 		{Name: "r2", Host: "app.example.com", PathPrefix: "/api/v1", Service: "s2"},
 		{Name: "r3", Host: "other.example.com", PathPrefix: "/", Service: "s3"},
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	// longest prefix wins under same host
 	if got := rt.Match("app.example.com", "/api/v1/items"); got == nil || got.Service != "s2" {
@@ -33,11 +33,11 @@ func TestMatch_MultiHostAndLongestPrefix(t *testing.T) {
 }
 
 func TestMatch_WildcardFallback(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		{Name: "r1", Host: "app.example.com", PathPrefix: "/api", Service: "s1"},
 		{Name: "r0", Host: "", PathPrefix: "/", Service: "s0"}, // global wildcard
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	// unmatched host falls back to wildcard
 	if got := rt.Match("nope.example.com", "/hi"); got == nil || got.Service != "s0" {
@@ -50,12 +50,12 @@ func TestMatch_WildcardFallback(t *testing.T) {
 }
 
 func TestMatch_PathSegmentBoundary(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		{Name: "api", Host: "app.example.com", PathPrefix: "/api", Service: "api"},
 		{Name: "api-v1", Host: "app.example.com", PathPrefix: "/api/v1", Service: "api-v1"},
 		{Name: "wild", Host: "", PathPrefix: "/", Service: "wild"},
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	// exact match on prefix
 	if got := rt.Match("app.example.com", "/api"); got == nil || got.Service != "api" {
@@ -76,12 +76,12 @@ func TestMatch_PathSegmentBoundary(t *testing.T) {
 }
 
 func TestMatch_WildcardHost_SubdomainsOnly(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		{Name: "exact", Host: "app.example.com", PathPrefix: "/", Service: "exact"},
 		{Name: "wild", Host: "*.example.com", PathPrefix: "/", Service: "wild"},
 		{Name: "global", Host: "", PathPrefix: "/", Service: "global"},
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	// exact host must win over wildcard
 	if got := rt.Match("app.example.com", "/"); got == nil || got.Service != "exact" {
@@ -105,11 +105,11 @@ func TestMatch_WildcardHost_SubdomainsOnly(t *testing.T) {
 }
 
 func TestMatch_WildcardHost_PrecedenceBySuffixLength(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		{Name: "broad", Host: "*.example.com", PathPrefix: "/", Service: "broad"},
 		{Name: "narrow", Host: "*.api.example.com", PathPrefix: "/", Service: "narrow"},
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	if got := rt.Match("foo.api.example.com", "/"); got == nil || got.Service != "narrow" {
 		t.Fatalf("want narrow (more specific wildcard) for foo.api.example.com, got %+v", got)
@@ -120,14 +120,14 @@ func TestMatch_WildcardHost_PrecedenceBySuffixLength(t *testing.T) {
 }
 
 func TestMatch_DefaultRoutePerHostVsGlobal(t *testing.T) {
-	routes := []model.Route{
+	routes := []config.Route{
 		// host-specific routes
 		{Name: "api", Host: "app.example.com", PathPrefix: "/api", Service: "api"},
 		{Name: "app-default", Host: "app.example.com", PathPrefix: "/", Service: "app-default"},
 		// global default
 		{Name: "global-default", Host: "", PathPrefix: "/", Service: "global-default"},
 	}
-	rt := New(routes)
+	rt := NewRouter(routes)
 
 	// known prefix still wins on that host
 	if got := rt.Match("app.example.com", "/api/foo"); got == nil || got.Service != "api" {

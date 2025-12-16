@@ -30,6 +30,8 @@ routes:
     match:
       path_prefix: /reload
     service: s1
+
+refresh_interval: 1s
 `
 	if err := os.WriteFile(configFile, []byte(configV1), 0644); err != nil {
 		t.Fatal(err)
@@ -110,6 +112,8 @@ routes:
     match:
       path_prefix: /reload
     service: s2
+
+refresh_interval: 1s
 `
 	// Wait a bit to ensure mtime changes (filesystem resolution)
 	time.Sleep(1 * time.Second)

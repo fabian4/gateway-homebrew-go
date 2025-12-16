@@ -31,8 +31,7 @@ transport:
   dial_timeout: 5s
   dial_keep_alive: 60s
 
-benchmark:
-  enabled: false
+refresh_interval: 5s
 
 timeouts:
   read: 15s

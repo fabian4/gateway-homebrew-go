@@ -1,4 +1,4 @@
-package forward
+package transport
 
 import (
 	"crypto/tls"

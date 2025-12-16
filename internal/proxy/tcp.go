@@ -1,4 +1,4 @@
-package handler
+package proxy
 
 import (
 	"io"
@@ -6,13 +6,12 @@ import (
 	"net"
 	"time"
 
-	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
 )
 
 // TCPProxy handles L4 TCP proxying.
 type TCPProxy struct {
-	Balancer          lb.Balancer
+	Balancer          Balancer
 	IdleTimeout       time.Duration
 	ConnectionTimeout time.Duration
 	Metrics           *metrics.Registry
@@ -20,7 +19,7 @@ type TCPProxy struct {
 	ServiceName       string
 }
 
-func NewTCPProxy(balancer lb.Balancer, idleTimeout, connectionTimeout time.Duration, m *metrics.Registry, listenerName, serviceName string) *TCPProxy {
+func NewTCPProxy(balancer Balancer, idleTimeout, connectionTimeout time.Duration, m *metrics.Registry, listenerName, serviceName string) *TCPProxy {
 	return &TCPProxy{
 		Balancer:          balancer,
 		IdleTimeout:       idleTimeout,

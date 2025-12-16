@@ -1,4 +1,4 @@
-package handler
+package proxy
 
 import (
 	"context"
@@ -17,17 +17,14 @@ import (
 	"time"
 
 	"github.com/fabian4/gateway-homebrew-go/internal/config"
-	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
-	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
-	"github.com/fabian4/gateway-homebrew-go/internal/router"
+	"github.com/fabian4/gateway-homebrew-go/internal/transport"
 )
 
 type GatewayState struct {
-	Routes          *router.Table
-	Services        map[string]model.Service
-	balancers       map[string]lb.Balancer
+	Routes          *Table
+	Services        map[string]config.Service
+	balancers       map[string]Balancer
 	UpstreamTimeout time.Duration
 	AccessLogConfig config.AccessLogConfig
 }
@@ -35,15 +32,15 @@ type GatewayState struct {
 type Gateway struct {
 	stateMu    sync.RWMutex
 	state      *GatewayState
-	Transports fwd.Factory
+	Transports *transport.Registry
 	AccessLog  io.Writer
 	Metrics    *metrics.Registry
 }
 
-func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer, alc config.AccessLogConfig, m *metrics.Registry) *Gateway {
-	lbs := make(map[string]lb.Balancer)
+func NewGateway(rt *Table, svcs map[string]config.Service, f *transport.Registry, upstreamTimeout time.Duration, accessLog io.Writer, alc config.AccessLogConfig, m *metrics.Registry) *Gateway {
+	lbs := make(map[string]Balancer)
 	for name, svc := range svcs {
-		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
+		lbs[name] = NewSmoothWRR(svc.Endpoints)
 	}
 	if accessLog == nil {
 		accessLog = io.Discard
@@ -58,10 +55,10 @@ func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, 
 	return &Gateway{state: state, Transports: f, AccessLog: accessLog, Metrics: m}
 }
 
-func (g *Gateway) UpdateState(rt *router.Table, svcs map[string]model.Service, upstreamTimeout time.Duration, alc config.AccessLogConfig) {
-	lbs := make(map[string]lb.Balancer)
+func (g *Gateway) UpdateState(rt *Table, svcs map[string]config.Service, upstreamTimeout time.Duration, alc config.AccessLogConfig) {
+	lbs := make(map[string]Balancer)
 	for name, svc := range svcs {
-		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
+		lbs[name] = NewSmoothWRR(svc.Endpoints)
 	}
 	newState := &GatewayState{
 		Routes:          rt,

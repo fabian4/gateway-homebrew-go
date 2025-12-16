@@ -158,6 +158,26 @@ timeouts:
 	}
 }
 
+func TestLoad_RefreshInterval(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["http://e1:80"]
+routes:
+  - match: { path_prefix: "/" }
+    service: s1
+refresh_interval: 10s
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.RefreshInterval.Seconds() != 10 {
+		t.Errorf("refresh_interval: got %v, want 10s", cfg.RefreshInterval)
+	}
+}
+
 func TestLoad_Errors(t *testing.T) {
 	// missing service reference
 	yml := `

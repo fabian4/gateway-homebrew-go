@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"gopkg.in/yaml.v3"
-
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
 )
 
 type rawConfig struct {
@@ -70,26 +68,20 @@ type rawConfig struct {
 		DialTimeout         string `yaml:"dial_timeout"`
 		DialKeepAlive       string `yaml:"dial_keep_alive"`
 	} `yaml:"transport"`
-	Benchmark struct {
-		Enabled bool `yaml:"enabled"`
-	} `yaml:"benchmark"`
+	RefreshInterval string `yaml:"refresh_interval"`
 }
 
 type Config struct {
-	Listen    string
-	Listeners []model.Listener
-	Services  map[string]model.Service
-	Routes    []model.Route
-	Timeouts  Timeouts
-	TLS       TLSConfig
-	Metrics   MetricsConfig
-	AccessLog AccessLogConfig
-	Transport TransportConfig
-	Benchmark BenchmarkConfig
-}
-
-type BenchmarkConfig struct {
-	Enabled bool
+	Listen          string
+	RefreshInterval time.Duration
+	Listeners       []Listener
+	Services        map[string]Service
+	Routes          []Route
+	Timeouts        Timeouts
+	TLS             TLSConfig
+	Metrics         MetricsConfig
+	AccessLog       AccessLogConfig
+	Transport       TransportConfig
 }
 
 type TransportConfig struct {
@@ -144,21 +136,21 @@ func Load(path string) (*Config, error) {
 	}
 
 	// listen
-	var listeners []model.Listener
+	var listeners []Listener
 	if len(rc.EntryPoint) > 0 {
 		for _, ep := range rc.EntryPoint {
 			addr := strings.TrimSpace(ep.Address)
 			if addr == "" {
 				addr = ":8080"
 			}
-			listeners = append(listeners, model.Listener{
+			listeners = append(listeners, Listener{
 				Name:    strings.TrimSpace(ep.Name),
 				Address: addr,
 				Service: strings.TrimSpace(ep.Service),
 			})
 		}
 	} else {
-		listeners = append(listeners, model.Listener{
+		listeners = append(listeners, Listener{
 			Name:    "default",
 			Address: ":8080",
 		})
@@ -168,7 +160,7 @@ func Load(path string) (*Config, error) {
 	listen := listeners[0].Address
 
 	// services
-	svcs := make(map[string]model.Service)
+	svcs := make(map[string]Service)
 	for i, s := range rc.Services {
 		name := strings.TrimSpace(s.Name)
 		if name == "" {
@@ -186,7 +178,7 @@ func Load(path string) (*Config, error) {
 		if len(s.Endpoints) == 0 {
 			return nil, fmt.Errorf("services[%d]: endpoints is empty", i)
 		}
-		var eps []model.Endpoint
+		var eps []Endpoint
 		for j, raw := range s.Endpoints {
 			var rawURL string
 			weight := 1
@@ -212,21 +204,21 @@ func Load(path string) (*Config, error) {
 			if (u.Scheme != "http" && u.Scheme != "https" && u.Scheme != "tcp") || u.Host == "" {
 				return nil, fmt.Errorf("services[%d].endpoints[%d]: must be http(s) or tcp URL with host", i, j)
 			}
-			eps = append(eps, model.Endpoint{URL: u, Weight: weight})
+			eps = append(eps, Endpoint{URL: u, Weight: weight})
 		}
 		if _, dup := svcs[name]; dup {
 			return nil, fmt.Errorf("services: duplicate name %q", name)
 		}
-		var upstreamTLS *model.UpstreamTLS
+		var upstreamTLS *UpstreamTLS
 		if s.TLS.InsecureSkipVerify || s.TLS.CAFile != "" || s.TLS.CertFile != "" || s.TLS.KeyFile != "" {
-			upstreamTLS = &model.UpstreamTLS{
+			upstreamTLS = &UpstreamTLS{
 				InsecureSkipVerify: s.TLS.InsecureSkipVerify,
 				CAFile:             s.TLS.CAFile,
 				CertFile:           s.TLS.CertFile,
 				KeyFile:            s.TLS.KeyFile,
 			}
 		}
-		svcs[name] = model.Service{
+		svcs[name] = Service{
 			Name:      name,
 			Proto:     proto,
 			Endpoints: eps,
@@ -238,7 +230,7 @@ func Load(path string) (*Config, error) {
 	}
 
 	// routes
-	var routes []model.Route
+	var routes []Route
 	for i, r := range rc.Routes {
 		name := strings.TrimSpace(r.Name)
 		if name == "" {
@@ -256,7 +248,7 @@ func Load(path string) (*Config, error) {
 		if _, ok := svcs[service]; !ok {
 			return nil, fmt.Errorf("routes[%d]: service=%q not found in services", i, service)
 		}
-		rt := model.Route{
+		rt := Route{
 			Name:         name,
 			Host:         host, // empty => wildcard
 			PathPrefix:   pfx,
@@ -392,16 +384,27 @@ func Load(path string) (*Config, error) {
 		transport.DialKeepAlive = 60 * time.Second
 	}
 
+	var refreshInterval time.Duration
+	if rc.RefreshInterval != "" {
+		d, err := time.ParseDuration(rc.RefreshInterval)
+		if err != nil {
+			return nil, fmt.Errorf("refresh_interval: %v", err)
+		}
+		refreshInterval = d
+	} else {
+		refreshInterval = 5 * time.Second
+	}
+
 	return &Config{
-		Listen:    listen,
-		Listeners: listeners,
-		Services:  svcs,
-		Routes:    routes,
-		Timeouts:  timeouts,
-		TLS:       tlsConfig,
-		Metrics:   MetricsConfig{Address: rc.Metrics.Address},
-		AccessLog: accessLog,
-		Transport: transport,
-		Benchmark: BenchmarkConfig{Enabled: rc.Benchmark.Enabled},
+		Listen:          listen,
+		RefreshInterval: refreshInterval,
+		Listeners:       listeners,
+		Services:        svcs,
+		Routes:          routes,
+		Timeouts:        timeouts,
+		TLS:             tlsConfig,
+		Metrics:         MetricsConfig{Address: rc.Metrics.Address},
+		AccessLog:       accessLog,
+		Transport:       transport,
 	}, nil
 }

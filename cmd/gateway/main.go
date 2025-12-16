@@ -14,16 +14,14 @@ import (
 	"time"
 
 	cfg "github.com/fabian4/gateway-homebrew-go/internal/config"
-	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
-	"github.com/fabian4/gateway-homebrew-go/internal/handler"
-	"github.com/fabian4/gateway-homebrew-go/internal/lb"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
-	"github.com/fabian4/gateway-homebrew-go/internal/router"
-	"github.com/fabian4/gateway-homebrew-go/internal/version"
+	"github.com/fabian4/gateway-homebrew-go/internal/proxy"
+	"github.com/fabian4/gateway-homebrew-go/internal/transport"
 )
 
-func updateRegistry(reg *fwd.Registry, services map[string]model.Service) {
+var version = "v0.6.0"
+
+func updateRegistry(reg *transport.Registry, services map[string]cfg.Service) {
 	for _, svc := range services {
 		if svc.TLS != nil {
 			tlsConf := &tls.Config{
@@ -112,27 +110,27 @@ func main() {
 		}()
 	}
 
-	rt := router.New(c.Routes)
+	rt := proxy.NewRouter(c.Routes)
 
 	// Transport options
-	fwdOpts := fwd.DefaultOptions()
+	fwdOpts := transport.DefaultOptions()
 	fwdOpts.MaxIdleConns = c.Transport.MaxIdleConns
 	fwdOpts.MaxIdleConnsPerHost = c.Transport.MaxIdleConnsPerHost
 	fwdOpts.IdleConnTimeout = c.Transport.IdleConnTimeout
 	fwdOpts.DialTimeout = c.Transport.DialTimeout
 	fwdOpts.DialKeepAlive = c.Transport.DialKeepAlive
 
-	reg := fwd.NewRegistry(fwdOpts)
+	reg := transport.NewRegistry(fwdOpts)
 
 	// Register transports for each service
 	updateRegistry(reg, c.Services)
 
-	gw := handler.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout, c.AccessLog, m)
+	gw := proxy.NewGateway(rt, c.Services, reg, c.Timeouts.Upstream, os.Stdout, c.AccessLog, m)
 
-	if !c.Benchmark.Enabled {
-		go watchConfig(*configPath, 5*time.Second, func(newC *cfg.Config) {
+	if c.RefreshInterval > 0 {
+		go watchConfig(*configPath, c.RefreshInterval, func(newC *cfg.Config) {
 			updateRegistry(reg, newC.Services)
-			rt := router.New(newC.Routes)
+			rt := proxy.NewRouter(newC.Routes)
 			gw.UpdateState(rt, newC.Services, newC.Timeouts.Upstream, newC.AccessLog)
 		})
 	}
@@ -140,10 +138,7 @@ func main() {
 	var httpServers []*http.Server
 	var tcpListeners []net.Listener
 
-	log.Printf("gateway-homebrew-go %s starting...", version.Value)
-	if c.Benchmark.Enabled {
-		log.Printf("benchmark mode enabled (background tasks disabled)")
-	}
+	log.Printf("gateway-homebrew-go %s starting...", version)
 
 	for _, l := range c.Listeners {
 		if l.Service != "" {
@@ -152,8 +147,8 @@ func main() {
 			if !ok {
 				log.Fatalf("listener %s: service %s not found", l.Name, l.Service)
 			}
-			balancer := lb.NewSmoothWRR(svc.Endpoints)
-			proxy := handler.NewTCPProxy(balancer, c.Timeouts.TCPIdle, c.Timeouts.TCPConnection, m, l.Name, l.Service)
+			balancer := proxy.NewSmoothWRR(svc.Endpoints)
+			proxy := proxy.NewTCPProxy(balancer, c.Timeouts.TCPIdle, c.Timeouts.TCPConnection, m, l.Name, l.Service)
 
 			ln, err := net.Listen("tcp", l.Address)
 			if err != nil {

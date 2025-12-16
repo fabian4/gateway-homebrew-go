@@ -1,10 +1,10 @@
-package lb
+package proxy
 
 import (
 	"net/url"
 	"testing"
 
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 )
 
 func TestSmoothWRR(t *testing.T) {
@@ -12,7 +12,7 @@ func TestSmoothWRR(t *testing.T) {
 	u2, _ := url.Parse("http://b")
 	u3, _ := url.Parse("http://c")
 
-	endpoints := []model.Endpoint{
+	endpoints := []config.Endpoint{
 		{URL: u1, Weight: 5},
 		{URL: u2, Weight: 1},
 		{URL: u3, Weight: 1},
@@ -42,7 +42,7 @@ func TestSmoothWRR(t *testing.T) {
 
 func TestSmoothWRR_Single(t *testing.T) {
 	u1, _ := url.Parse("http://a")
-	endpoints := []model.Endpoint{{URL: u1, Weight: 1}}
+	endpoints := []config.Endpoint{{URL: u1, Weight: 1}}
 	lb := NewSmoothWRR(endpoints)
 
 	for i := 0; i < 10; i++ {
@@ -55,7 +55,7 @@ func TestSmoothWRR_Single(t *testing.T) {
 func TestSmoothWRR_PassiveHealth(t *testing.T) {
 	u1, _ := url.Parse("http://a")
 	u2, _ := url.Parse("http://b")
-	endpoints := []model.Endpoint{
+	endpoints := []config.Endpoint{
 		{URL: u1, Weight: 1},
 		{URL: u2, Weight: 1},
 	}

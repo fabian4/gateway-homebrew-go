@@ -1,25 +1,25 @@
-package router
+package proxy
 
 import (
 	"sort"
 	"strings"
 
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
+	"github.com/fabian4/gateway-homebrew-go/internal/config"
 )
 
 type wildcardBucket struct {
-	suffix string        // e.g. "example.com" for host "*.example.com"
-	routes []model.Route // routes for that wildcard host, sorted by prefix desc
+	suffix string         // e.g. "example.com" for host "*.example.com"
+	routes []config.Route // routes for that wildcard host, sorted by prefix desc
 }
 
 type Table struct {
-	byHost   map[string][]model.Route // exact host -> routes sorted by prefix desc
-	wildcard []wildcardBucket         // wildcard hosts ("*.example.com") ordered by longest suffix first
-	any      []model.Route            // global wildcard routes (no host) -> prefix desc
+	byHost   map[string][]config.Route // exact host -> routes sorted by prefix desc
+	wildcard []wildcardBucket          // wildcard hosts ("*.example.com") ordered by longest suffix first
+	any      []config.Route            // global wildcard routes (no host) -> prefix desc
 }
 
-func New(routes []model.Route) *Table {
-	t := &Table{byHost: make(map[string][]model.Route)}
+func NewRouter(routes []config.Route) *Table {
+	t := &Table{byHost: make(map[string][]config.Route)}
 
 	// helper to collect wildcard hosts keyed by suffix
 	wildBySuffix := make(map[string]*wildcardBucket)
@@ -67,7 +67,7 @@ func New(routes []model.Route) *Table {
 	return t
 }
 
-func (t *Table) Match(host, path string) *model.Route {
+func (t *Table) Match(host, path string) *config.Route {
 	h := strings.ToLower(hostOnly(host))
 	if r := match(t.byHost[h], path); r != nil {
 		return r
@@ -85,7 +85,7 @@ func (t *Table) Match(host, path string) *model.Route {
 	return match(t.any, path)
 }
 
-func match(rs []model.Route, path string) *model.Route {
+func match(rs []config.Route, path string) *config.Route {
 	for i := range rs {
 		if pathPrefixMatch(path, rs[i].PathPrefix) {
 			return &rs[i]

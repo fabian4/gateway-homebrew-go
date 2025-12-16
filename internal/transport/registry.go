@@ -1,4 +1,4 @@
-package forward
+package transport
 
 import (
 	"crypto/tls"
@@ -53,13 +53,6 @@ func DefaultOptions() Options {
 		InsecureSkipVerify:    false,
 		RootCAs:               nil,
 	}
-}
-
-// Factory returns a RoundTripper by name.
-type Factory interface {
-	Get(name string) http.RoundTripper
-	Register(name string, rt http.RoundTripper)
-	CloseIdle()
 }
 
 // Registry is a threadsafe map of named RoundTrippers.

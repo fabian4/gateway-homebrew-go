@@ -1,4 +1,4 @@
-package handler
+package proxy
 
 import (
 	"bytes"
@@ -11,10 +11,8 @@ import (
 	"testing"
 
 	"github.com/fabian4/gateway-homebrew-go/internal/config"
-	fwd "github.com/fabian4/gateway-homebrew-go/internal/forward"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
-	"github.com/fabian4/gateway-homebrew-go/internal/model"
-	"github.com/fabian4/gateway-homebrew-go/internal/router"
+	"github.com/fabian4/gateway-homebrew-go/internal/transport"
 )
 
 func mustURL(t *testing.T, s string) *url.URL {
@@ -42,14 +40,14 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 	upURL := mustURL(t, up.URL)
 
 	// services and routes
-	svcs := map[string]model.Service{
+	svcs := map[string]config.Service{
 		"s1": {
 			Name:      "s1",
 			Proto:     "http1",
-			Endpoints: []model.Endpoint{{URL: upURL}},
+			Endpoints: []config.Endpoint{{URL: upURL}},
 		},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:       "r1",
 			Host:       "app.example.com",
@@ -58,8 +56,8 @@ func TestGateway_BasicRouteAndHeaders(t *testing.T) {
 			// default: preserve_host=false, no host_rewrite
 		},
 	}
-	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+	rt := NewRouter(rs)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	// downstream request
 	req := httptest.NewRequest("GET", "http://gw.local/api/ping?x=1", nil)
@@ -110,10 +108,10 @@ func TestGateway_PreserveHost(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:         "r1",
 			Host:         "app.example.com",
@@ -122,8 +120,8 @@ func TestGateway_PreserveHost(t *testing.T) {
 			PreserveHost: true,
 		},
 	}
-	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+	rt := NewRouter(rs)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -147,10 +145,10 @@ func TestGateway_HostRewrite(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:        "r1",
 			Host:        "app.example.com",
@@ -159,8 +157,8 @@ func TestGateway_HostRewrite(t *testing.T) {
 			HostRewrite: "rewrite.local",
 		},
 	}
-	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+	rt := NewRouter(rs)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/", nil)
 	req.Host = "app.example.com"
@@ -183,10 +181,10 @@ func TestGateway_AccessLog(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:       "r1",
 			Host:       "log.local",
@@ -194,10 +192,10 @@ func TestGateway_AccessLog(t *testing.T) {
 			Service:    "s1",
 		},
 	}
-	rt := router.New(rs)
+	rt := NewRouter(rs)
 
 	var buf bytes.Buffer
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 1.0}, nil)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "log.local"
@@ -252,10 +250,10 @@ func TestGateway_GRPCTrailers(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"grpc": {Name: "grpc", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"grpc": {Name: "grpc", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:       "r1",
 			Host:       "grpc.local",
@@ -263,8 +261,8 @@ func TestGateway_GRPCTrailers(t *testing.T) {
 			Service:    "grpc",
 		},
 	}
-	rt := router.New(rs)
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+	rt := NewRouter(rs)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	req := httptest.NewRequest("POST", "http://gw.local/grpc.health.v1.Health/Check", nil)
 	req.Host = "grpc.local"
@@ -300,10 +298,10 @@ func TestGateway_Metrics(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{
 			Name:       "r1",
 			Host:       "metrics.local",
@@ -311,9 +309,9 @@ func TestGateway_Metrics(t *testing.T) {
 			Service:    "s1",
 		},
 	}
-	rt := router.New(rs)
+	rt := NewRouter(rs)
 	m := metrics.NewRegistry()
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, m)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, m)
 
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "metrics.local"
@@ -344,17 +342,17 @@ func TestGateway_AccessLog_SamplingAndFields(t *testing.T) {
 	defer up.Close()
 	upURL := mustURL(t, up.URL)
 
-	svcs := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL}}},
+	svcs := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL}}},
 	}
-	rs := []model.Route{
+	rs := []config.Route{
 		{Name: "r1", Host: "log.local", PathPrefix: "/", Service: "s1"},
 	}
-	rt := router.New(rs)
+	rt := NewRouter(rs)
 
 	// 1. Test Sampling (0.0 -> no logs)
 	var buf bytes.Buffer
-	gw := NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 0.0}, nil)
+	gw := NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{Sampling: 0.0}, nil)
 	req := httptest.NewRequest("GET", "http://gw.local/foo", nil)
 	req.Host = "log.local"
 	gw.ServeHTTP(httptest.NewRecorder(), req)
@@ -364,7 +362,7 @@ func TestGateway_AccessLog_SamplingAndFields(t *testing.T) {
 
 	// 2. Test Fields Filtering
 	buf.Reset()
-	gw = NewGateway(rt, svcs, fwd.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{
+	gw = NewGateway(rt, svcs, transport.NewDefaultRegistry(), 0, &buf, config.AccessLogConfig{
 		Sampling: 1.0,
 		Fields:   []string{"method", "status"},
 	}, nil)
@@ -397,15 +395,15 @@ func TestGateway_UpdateState(t *testing.T) {
 	defer up1.Close()
 	upURL1 := mustURL(t, up1.URL)
 
-	svcs1 := map[string]model.Service{
-		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL1}}},
+	svcs1 := map[string]config.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL1}}},
 	}
-	rs1 := []model.Route{
+	rs1 := []config.Route{
 		{Name: "r1", Host: "update.local", PathPrefix: "/v1", Service: "s1"},
 	}
-	rt1 := router.New(rs1)
+	rt1 := NewRouter(rs1)
 
-	gw := NewGateway(rt1, svcs1, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+	gw := NewGateway(rt1, svcs1, transport.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
 
 	// Verify initial state
 	req := httptest.NewRequest("GET", "http://gw.local/v1/foo", nil)
@@ -424,13 +422,13 @@ func TestGateway_UpdateState(t *testing.T) {
 	defer up2.Close()
 	upURL2 := mustURL(t, up2.URL)
 
-	svcs2 := map[string]model.Service{
-		"s2": {Name: "s2", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL2}}},
+	svcs2 := map[string]config.Service{
+		"s2": {Name: "s2", Proto: "http1", Endpoints: []config.Endpoint{{URL: upURL2}}},
 	}
-	rs2 := []model.Route{
+	rs2 := []config.Route{
 		{Name: "r1", Host: "update.local", PathPrefix: "/v1", Service: "s2"},
 	}
-	rt2 := router.New(rs2)
+	rt2 := NewRouter(rs2)
 
 	gw.UpdateState(rt2, svcs2, 0, config.AccessLogConfig{Sampling: 1.0})
 
