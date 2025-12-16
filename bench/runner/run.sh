@@ -13,13 +13,13 @@ echo "Running benchmark: Case=$CASE, Gateway=$GATEWAY"
 
 cleanup() {
     echo "Cleaning up..."
-    docker-compose -f bench/docker-compose.yml down
+    docker compose -f bench/docker-compose.yml down
 }
 trap cleanup EXIT
 
 # 1. Start Backend and Gateway
 echo "Starting backend and gateway $GATEWAY..."
-docker-compose -f bench/docker-compose.yml up -d --build backend $GATEWAY
+docker compose -f bench/docker-compose.yml up -d --build backend $GATEWAY
 
 # Wait for gateway
 sleep 5
