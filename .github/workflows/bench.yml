@@ -18,19 +18,48 @@ jobs:
         run: chmod +x bench/runner/run.sh
 
       - name: Run Baseline (Homebrew)
-        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} homebrew
+        run: ./bench/runner/run.sh baseline homebrew
+      - name: Run Routing (Homebrew)
+        run: ./bench/runner/run.sh routing homebrew
+      - name: Run LoadBalancing (Homebrew)
+        run: ./bench/runner/run.sh loadbalancing homebrew
+      - name: Run Concurrency (Homebrew)
+        run: ./bench/runner/run.sh concurrency homebrew
 
       - name: Run Baseline (Envoy)
-        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} envoy
+        run: ./bench/runner/run.sh baseline envoy
+      - name: Run Routing (Envoy)
+        run: ./bench/runner/run.sh routing envoy
+      - name: Run LoadBalancing (Envoy)
+        run: ./bench/runner/run.sh loadbalancing envoy
+      - name: Run Concurrency (Envoy)
+        run: ./bench/runner/run.sh concurrency envoy
 
       - name: Run Baseline (NGINX)
-        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} nginx
+        run: ./bench/runner/run.sh baseline nginx
+      - name: Run Routing (NGINX)
+        run: ./bench/runner/run.sh routing nginx
+      - name: Run LoadBalancing (NGINX)
+        run: ./bench/runner/run.sh loadbalancing nginx
+      - name: Run Concurrency (NGINX)
+        run: ./bench/runner/run.sh concurrency nginx
 
       - name: Run Baseline (Traefik)
-        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} traefik
+        run: ./bench/runner/run.sh baseline traefik
+      - name: Run Routing (Traefik)
+        run: ./bench/runner/run.sh routing traefik
+      - name: Run LoadBalancing (Traefik)
+        run: ./bench/runner/run.sh loadbalancing traefik
+      - name: Run Concurrency (Traefik)
+        run: ./bench/runner/run.sh concurrency traefik
+
+      - name: Aggregate Results
+        run: python3 bench/runner/aggregate.py bench/results > bench/results/summary.md
 
       - name: Upload Results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: bench/results/*.json
+          path: |
+            bench/results/*.json
+            bench/results/summary.md

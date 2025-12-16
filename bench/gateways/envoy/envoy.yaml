@@ -18,6 +18,14 @@ static_resources:
               domains: ["*"]
               routes:
               - match:
+                  prefix: "/routing/prefix"
+                route:
+                  cluster: local_service
+              - match:
+                  prefix: "/lb"
+                route:
+                  cluster: lb_service
+              - match:
                   prefix: "/"
                 route:
                   cluster: local_service
@@ -39,3 +47,21 @@ static_resources:
               socket_address:
                 address: 127.0.0.1
                 port_value: 8081
+  - name: lb_service
+    connect_timeout: 0.25s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    load_assignment:
+      cluster_name: lb_service
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 8081
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 8082

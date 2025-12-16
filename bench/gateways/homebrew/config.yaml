@@ -6,12 +6,24 @@ services:
   - name: backend
     endpoints:
       - "http://127.0.0.1:8081"
+  - name: backend-lb
+    endpoints:
+      - "http://127.0.0.1:8081"
+      - "http://127.0.0.1:8082"
 
 routes:
   - name: all
     match:
       path_prefix: /
     service: backend
+  - name: routing-prefix
+    match:
+      path_prefix: /routing/prefix
+    service: backend
+  - name: lb
+    match:
+      path_prefix: /lb
+    service: backend-lb
 
 access_log:
-  sampling: 0.0 # Disable access logs for performance benchmark
+  sampling: 0.0

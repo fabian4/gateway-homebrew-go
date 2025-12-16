@@ -92,23 +92,14 @@ Purpose: measure the minimum forwarding overhead.
 
 Purpose: evaluate routing table lookup cost.
 
----
-### **Case 2: Header Manipulation**
-- Add / remove request headers
-- Add response headers
-
-Purpose: measure allocation and header processing overhead.
-
----
-### **Case 3: Load Balancing**
+### **Case 2: Load Balancing**
 - Multiple upstream backends
 - Round-robin (first phase)
 - Keep-alive enabled
 
 Purpose: evaluate upstream selection and connection reuse.
 
----
-### **Case 4: High Concurrency / Long-lived Connections**
+### **Case 3: High Concurrency / Long-lived Connections**
 - Large number of keep-alive connections
 - Fixed request rate (wrk2)
 

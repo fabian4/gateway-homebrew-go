@@ -5,9 +5,24 @@ http:
       service: backend
       entryPoints:
         - web
+    to-routing:
+      rule: "PathPrefix(`/routing/prefix`)"
+      service: backend
+      entryPoints:
+        - web
+    to-lb:
+      rule: "PathPrefix(`/lb`)"
+      service: backend-lb
+      entryPoints:
+        - web
 
   services:
     backend:
       loadBalancer:
         servers:
           - url: "http://127.0.0.1:8081"
+    backend-lb:
+      loadBalancer:
+        servers:
+          - url: "http://127.0.0.1:8081"
+          - url: "http://127.0.0.1:8082"

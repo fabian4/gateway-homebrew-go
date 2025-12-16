@@ -41,6 +41,3 @@ cat "bench/results/${CASE}_${GATEWAY}.txt"
 
 echo "Parsing results..."
 python3 bench/runner/parse.py "bench/results/${CASE}_${GATEWAY}.txt" "$GATEWAY" "$CASE"
-
-# 4. Cleanup (handled by trap)
-
