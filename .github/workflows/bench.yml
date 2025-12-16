@@ -61,5 +61,4 @@ jobs:
         with:
           name: benchmark-results
           path: |
-            bench/results/*.json
             bench/results/summary.md

@@ -10,53 +10,73 @@ def main():
 
     results_dir = sys.argv[1]
     files = glob.glob(os.path.join(results_dir, "*.json"))
-    
-    data = []
+
+    # data_map[case][gateway] = json_obj
+    data_map = {}
+    all_gateways = set()
+    all_cases = set()
+
     for f in files:
         try:
             with open(f, 'r') as fd:
-                data.append(json.load(fd))
+                entry = json.load(fd)
+                c = entry.get("case")
+                g = entry.get("gateway")
+                if c and g:
+                    if c not in data_map:
+                        data_map[c] = {}
+                    data_map[c][g] = entry
+                    all_gateways.add(g)
+                    all_cases.add(c)
         except Exception as e:
             print(f"Error reading {f}: {e}", file=sys.stderr)
 
-    # Group by case
-    cases = {}
-    gateways = set()
-    for d in data:
-        c = d.get("case")
-        g = d.get("gateway")
-        if not c or not g:
-            continue
-        if c not in cases:
-            cases[c] = {}
-        cases[c][g] = d
-        gateways.add(g)
+    sorted_gateways = sorted(list(all_gateways))
+    if "homebrew" in sorted_gateways: sorted_gateways.insert(0, sorted_gateways.pop(sorted_gateways.index("homebrew")))
 
-    sorted_gateways = sorted(list(gateways))
-    sorted_cases = sorted(list(cases.keys()))
+    sorted_cases = sorted(list(all_cases))
 
-    print("# Benchmark Results")
-    print("")
-    
-    for c in sorted_cases:
-        print(f"## Case: {c}")
-        print("| Gateway | RPS | P50 (ms) | P90 (ms) | P99 (ms) |")
-        print("|---|---|---|---|---|")
-        
-        for g in sorted_gateways:
-            res = cases[c].get(g)
-            if not res:
-                print(f"| {g} | N/A | N/A | N/A | N/A |")
-                continue
-            
-            rps = f"{res.get('rps', 0):.2f}"
-            lat = res.get('latency', {})
-            p50 = f"{lat.get('p50', 0):.2f}"
-            p90 = f"{lat.get('p90', 0):.2f}"
-            p99 = f"{lat.get('p99', 0):.2f}"
-            
-            print(f"| {g} | {rps} | {p50} | {p90} | {p99} |")
-        print("")
+    headers = ["Case", "Metric"] + sorted_gateways
+    print("| " + " | ".join(headers) + " |")
+    print("| " + " | ".join(["---"] * len(headers)) + " |")
+
+    # 5. 输出数据行
+    metrics = [
+        ("RPS", "rps"),
+        ("P50 (ms)", "p50"),
+        ("P90 (ms)", "p90"),
+        ("P99 (ms)", "p99")
+    ]
+
+    for case in sorted_cases:
+        first_row = True
+        for label, key in metrics:
+            row = []
+
+            if first_row:
+                row.append(f"**{case}**")
+                first_row = False
+            else:
+                row.append("")
+
+            row.append(label)
+
+            for g in sorted_gateways:
+                entry = data_map.get(case, {}).get(g)
+                if not entry:
+                    row.append("-")
+                    continue
+
+                val = ""
+                if key == "rps":
+                    val = f"{entry.get('rps', 0):.2f}"
+                else:
+                    lat = entry.get('latency', {})
+                    val = f"{lat.get(key, 0):.2f}"
+
+                row.append(val)
+
+            print("| " + " | ".join(row) + " |")
 
 if __name__ == "__main__":
     main()
