@@ -54,11 +54,4 @@ jobs:
         run: ./bench/runner/run.sh concurrency traefik
 
       - name: Aggregate Results
-        run: python3 bench/runner/aggregate.py bench/results > bench/results/summary.md
-
-      - name: Upload Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-results
-          path: |
-            bench/results/summary.md
+        run: python3 bench/runner/aggregate.py bench/results >> $GITHUB_STEP_SUMMARY
