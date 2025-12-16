@@ -5,7 +5,7 @@ This repository contains a **Docker-based benchmark suite** for comparing single
 The benchmark is designed around a **non-Kubernetes, single-process deployment model**, where every gateway is evaluated **as a container image**, reflecting how gateways are commonly released and consumed in practice.
 
 Primary target:
-- **gateway-homebrew-go** (Go, single-binary gateway)
+- **homebrew** (Go, single-binary gateway)
 
 Comparison targets:
 - Envoy (static configuration)
@@ -39,12 +39,12 @@ The focus is strictly on **data-plane efficiency and simplicity**.
 
 ---
 ## **Gateways Under Test**
-|**Gateway**|**Mode**|
-|---|---|
-|gateway-homebrew-go|Go single-binary|
-|Envoy|Static config|
-|NGINX|nginx.conf|
-|Traefik|Static file provider|
+|**Gateway**|**Mode**|**Version**|
+|---|---|---|
+|homebrew|Go single-binary|v0.5.0|
+|Envoy|Static config|v1.30.1|
+|NGINX|nginx.conf|1.26.0|
+|Traefik|Static file provider|v3.0.1|
 
 All gateways are started via Docker and exposed on the same host port for testing.
 
@@ -148,7 +148,7 @@ All benchmarks output a unified JSON format:
 
 ```
 {
-  "gateway": "homebrew-go",
+  "gateway": "homebrew",
   "case": "baseline",
   "rps": 142381,
   "latency": {
@@ -190,10 +190,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Build gateway image
-      run: docker build -t homebrew-gw .
     - name: Run baseline benchmark
-      run: ./bench/runner/run.sh baseline homebrew-gw
+      run: ./bench/runner/run.sh baseline homebrew
 ```
 
 ---

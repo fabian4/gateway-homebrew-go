@@ -1,0 +1,36 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install wrk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wrk
+
+      - name: Make scripts executable
+        run: chmod +x bench/runner/run.sh
+
+      - name: Run Baseline (Homebrew)
+        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} homebrew
+
+      - name: Run Baseline (Envoy)
+        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} envoy
+
+      - name: Run Baseline (NGINX)
+        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} nginx
+
+      - name: Run Baseline (Traefik)
+        run: ./bench/runner/run.sh ${{ inputs.case || 'baseline' }} traefik
+
+      - name: Upload Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: bench/results/*.json

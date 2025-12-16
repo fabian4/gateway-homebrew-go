@@ -1,0 +1,17 @@
+entrypoint:
+  - name: default
+    address: :8080
+
+services:
+  - name: backend
+    endpoints:
+      - "http://127.0.0.1:8081"
+
+routes:
+  - name: all
+    match:
+      path_prefix: /
+    service: backend
+
+access_log:
+  sampling: 0.0 # Disable access logs for performance benchmark
