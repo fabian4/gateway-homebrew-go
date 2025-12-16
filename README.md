@@ -40,6 +40,27 @@ Performance benchmarks are documented in [`bench/README.md`](bench/README.md).
   - deterministic upstream connection policy (keepalive / idle timeout)
   - benchmark-friendly mode (disable hot reload, background tasks)
 
-
 ### v0.6.0 - Config Hot Reload
 - [x] [Detect changes → validate → atomic swap → rollback](docs/config-hot-reload.md)
+
+### v0.7.0 - Traffic Control & Resilience
+- [ ] Basic rate limiting (local, token bucket)
+- [ ] Circuit breaking (per-upstream / per-route)
+- [ ] Request retries with backoff (idempotent only)
+- [ ] Request hedging (optional, bounded)
+
+### v0.8.0 - HTTP Semantics & Correctness
+- [ ] Header normalization and validation
+- [ ] Configurable request / response header mutation
+- [ ] Proper 1xx / 3xx handling
+- [ ] Graceful handling of client disconnects
+
+### v0.9.0 - Upstream Health & Control
+- [ ] Active health checks (HTTP / TCP)
+- [ ] Slow-start for recovered upstreams
+- [ ] Outlier detection (simple EWMA)
+
+### v0.10.0 - Graceful Lifecycle
+- [ ] Graceful shutdown (drain in-flight requests)
+- [ ] Listener draining
+- [ ] Connection lifetime policies
