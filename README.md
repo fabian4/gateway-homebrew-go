@@ -8,6 +8,8 @@
 [![Go version](https://img.shields.io/github/go-mod/go-version/fabian4/gateway-homebrew-go)](https://pkg.go.dev/github.com/fabian4/gateway-homebrew-go)
 [![Go Reference](https://pkg.go.dev/badge/github.com/fabian4/gateway-homebrew-go)](https://pkg.go.dev/github.com/fabian4/gateway-homebrew-go)
 
+Performance benchmarks are documented in [`bench/README.md`](bench/README.md).
+
 ---
 ## Roadmap
 
