@@ -40,4 +40,4 @@
 
 
 ### v0.6.0 - Config Hot Reload
-- [ ] [Detect changes → validate → atomic swap → rollback](docs/config-hot-reload.md)
+- [x] [Detect changes → validate → atomic swap → rollback](docs/config-hot-reload.md)

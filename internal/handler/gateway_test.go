@@ -387,3 +387,57 @@ func TestGateway_AccessLog_SamplingAndFields(t *testing.T) {
 		t.Errorf("fields filtering: unexpected path")
 	}
 }
+
+func TestGateway_UpdateState(t *testing.T) {
+	// Initial state: route /v1 -> s1
+	up1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Svc", "s1")
+		w.WriteHeader(200)
+	}))
+	defer up1.Close()
+	upURL1 := mustURL(t, up1.URL)
+
+	svcs1 := map[string]model.Service{
+		"s1": {Name: "s1", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL1}}},
+	}
+	rs1 := []model.Route{
+		{Name: "r1", Host: "update.local", PathPrefix: "/v1", Service: "s1"},
+	}
+	rt1 := router.New(rs1)
+
+	gw := NewGateway(rt1, svcs1, fwd.NewDefaultRegistry(), 0, nil, config.AccessLogConfig{Sampling: 1.0}, nil)
+
+	// Verify initial state
+	req := httptest.NewRequest("GET", "http://gw.local/v1/foo", nil)
+	req.Host = "update.local"
+	rr := httptest.NewRecorder()
+	gw.ServeHTTP(rr, req)
+	if rr.Header().Get("X-Svc") != "s1" {
+		t.Fatalf("initial state: want s1, got %q", rr.Header().Get("X-Svc"))
+	}
+
+	// Update state: route /v1 -> s2
+	up2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Svc", "s2")
+		w.WriteHeader(200)
+	}))
+	defer up2.Close()
+	upURL2 := mustURL(t, up2.URL)
+
+	svcs2 := map[string]model.Service{
+		"s2": {Name: "s2", Proto: "http1", Endpoints: []model.Endpoint{{URL: upURL2}}},
+	}
+	rs2 := []model.Route{
+		{Name: "r1", Host: "update.local", PathPrefix: "/v1", Service: "s2"},
+	}
+	rt2 := router.New(rs2)
+
+	gw.UpdateState(rt2, svcs2, 0, config.AccessLogConfig{Sampling: 1.0})
+
+	// Verify updated state
+	rr2 := httptest.NewRecorder()
+	gw.ServeHTTP(rr2, req)
+	if rr2.Header().Get("X-Svc") != "s2" {
+		t.Fatalf("updated state: want s2, got %q", rr2.Header().Get("X-Svc"))
+	}
+}

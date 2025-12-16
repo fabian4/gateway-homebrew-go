@@ -1,5 +1,9 @@
 ﻿# Changelog
 
+## v0.6.0 - 2025-12-16
+- Config Hot Reload: Detect changes, validate, atomic swap, and rollback
+- Zero-downtime configuration updates
+
 ## v0.5.0 - 2025-12-15
 - Metrics: Prometheus-compatible endpoint (requests, latency, active connections)
 - Access Log: Sampling and field filtering support

@@ -1,3 +1,6 @@
+# gateway-homebrew-go configuration
+# This file is watched for changes. Updates are applied atomically without downtime.
+
 entrypoint:
   - name: web
     address: ":18080"

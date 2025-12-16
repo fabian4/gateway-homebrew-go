@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 
+	"sync"
 	"time"
 
 	"github.com/fabian4/gateway-homebrew-go/internal/config"
@@ -23,15 +24,20 @@ import (
 	"github.com/fabian4/gateway-homebrew-go/internal/router"
 )
 
-type Gateway struct {
+type GatewayState struct {
 	Routes          *router.Table
 	Services        map[string]model.Service
-	Transports      fwd.Factory
 	balancers       map[string]lb.Balancer
 	UpstreamTimeout time.Duration
-	AccessLog       io.Writer
 	AccessLogConfig config.AccessLogConfig
-	Metrics         *metrics.Registry
+}
+
+type Gateway struct {
+	stateMu    sync.RWMutex
+	state      *GatewayState
+	Transports fwd.Factory
+	AccessLog  io.Writer
+	Metrics    *metrics.Registry
 }
 
 func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, upstreamTimeout time.Duration, accessLog io.Writer, alc config.AccessLogConfig, m *metrics.Registry) *Gateway {
@@ -42,12 +48,40 @@ func NewGateway(rt *router.Table, svcs map[string]model.Service, f fwd.Factory, 
 	if accessLog == nil {
 		accessLog = io.Discard
 	}
-	return &Gateway{Routes: rt, Services: svcs, Transports: f, balancers: lbs, UpstreamTimeout: upstreamTimeout, AccessLog: accessLog, AccessLogConfig: alc, Metrics: m}
+	state := &GatewayState{
+		Routes:          rt,
+		Services:        svcs,
+		balancers:       lbs,
+		UpstreamTimeout: upstreamTimeout,
+		AccessLogConfig: alc,
+	}
+	return &Gateway{state: state, Transports: f, AccessLog: accessLog, Metrics: m}
+}
+
+func (g *Gateway) UpdateState(rt *router.Table, svcs map[string]model.Service, upstreamTimeout time.Duration, alc config.AccessLogConfig) {
+	lbs := make(map[string]lb.Balancer)
+	for name, svc := range svcs {
+		lbs[name] = lb.NewSmoothWRR(svc.Endpoints)
+	}
+	newState := &GatewayState{
+		Routes:          rt,
+		Services:        svcs,
+		balancers:       lbs,
+		UpstreamTimeout: upstreamTimeout,
+		AccessLogConfig: alc,
+	}
+	g.stateMu.Lock()
+	g.state = newState
+	g.stateMu.Unlock()
 }
 
 var _ http.Handler = (*Gateway)(nil)
 
 func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	g.stateMu.RLock()
+	state := g.state
+	g.stateMu.RUnlock()
+
 	start := time.Now()
 	lw := &loggingResponseWriter{ResponseWriter: w}
 	var serviceName, upstreamAddr, routeName string
@@ -59,7 +93,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		duration := time.Since(start)
 
 		// Sampling
-		if g.AccessLogConfig.Sampling < 1.0 && rand.Float64() > g.AccessLogConfig.Sampling {
+		if state.AccessLogConfig.Sampling < 1.0 && rand.Float64() > state.AccessLogConfig.Sampling {
 			// skip logging
 		} else {
 			entry := AccessLog{
@@ -78,7 +112,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			}
 
 			var logOutput any = entry
-			if len(g.AccessLogConfig.Fields) > 0 {
+			if len(state.AccessLogConfig.Fields) > 0 {
 				// Filter fields
 				m := make(map[string]any)
 				// We need to map struct fields to json tags manually or use reflection.
@@ -86,7 +120,7 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				// Or we can marshal to JSON and unmarshal to map, then filter? Too slow.
 				// Let's build the map manually based on requested fields.
 				allowed := make(map[string]bool)
-				for _, f := range g.AccessLogConfig.Fields {
+				for _, f := range state.AccessLogConfig.Fields {
 					allowed[f] = true
 				}
 
@@ -141,20 +175,20 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
 
-	route := g.Routes.Match(r.Host, r.URL.Path)
+	route := state.Routes.Match(r.Host, r.URL.Path)
 	if route == nil {
 		http.NotFound(lw, r)
 		return
 	}
 	serviceName = route.Service
 	routeName = route.Name
-	svc, ok := g.Services[route.Service]
+	svc, ok := state.Services[route.Service]
 	if !ok || len(svc.Endpoints) == 0 {
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
 	}
 	// minimal choice: first endpoint (TODO: plug LB)
-	ep := g.balancers[route.Service].Next()
+	ep := state.balancers[route.Service].Next()
 	if ep == nil {
 		http.Error(lw, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
 		return
@@ -176,9 +210,9 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	setXFHost(hdr, r.Host)
 
 	ctx := r.Context()
-	if g.UpstreamTimeout > 0 {
+	if state.UpstreamTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, g.UpstreamTimeout)
+		ctx, cancel = context.WithTimeout(ctx, state.UpstreamTimeout)
 		defer cancel()
 	}
 
