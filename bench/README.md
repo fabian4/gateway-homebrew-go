@@ -41,7 +41,7 @@ The focus is strictly on **data-plane efficiency and simplicity**.
 ## **Gateways Under Test**
 |**Gateway**|**Mode**|**Version**|
 |---|---|---|
-|homebrew|Go single-binary|v0.5.0|
+|homebrew|Go single-binary|0.5.0|
 |Envoy|Static config|v1.30.1|
 |NGINX|nginx.conf|1.26.0|
 |Traefik|Static file provider|v3.0.1|

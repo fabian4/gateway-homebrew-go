@@ -5,7 +5,7 @@ services:
     command: --port 8081
 
   homebrew:
-    image: ghcr.io/fabian4/gateway-homebrew-go:v0.5.0
+    image: ghcr.io/fabian4/gateway-homebrew-go:0.5.0
     network_mode: host
     volumes:
       - ./gateways/homebrew/config.yaml:/etc/gateway/config.yaml
