@@ -46,7 +46,7 @@ Phase 1: v0.2.0 (Inbound TLS & ALPN + gRPC pass-through)
   - internal/tls: SNI with multiple certs; sane cipher suites; config schema additions
   - internal/alpn: offer h2/http1.1; protocol handlers
   - internal/grpc: pass-through over h2; metadata preservation; size/deadline limits
-  - cmd/config validate expands to TLS files; docs/tls-terminator.md
+  - cmd/config validate expands to TLS files; docs/security/tls-termination.md
   - tests: TLS handshake + cert selection; ALPN negotiation; gRPC roundtrip
 - Dependencies
   - TLS termination before ALPN; ALPN before gRPC pass-through
@@ -80,7 +80,7 @@ Phase 4: v0.5.0 (Packaging & Observability)
   - tools/release: build multi-OS/arch binaries, checksums; publish GitHub Releases
   - CI: GHCR images build/push with version tags; semver policy
   - internal/metrics: Prometheus /metrics; gateway_* metrics; access log sampling and field selection
-  - docs: observability.md dashboards; release notes and verification steps
+  - docs: docs/observability/overview.md dashboards; release notes and verification steps
   - tests: scrape metrics; sampling behavior correctness
 - Dependencies
   - metrics foundation before dashboards; CI tasks before publishing
