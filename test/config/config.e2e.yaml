@@ -66,6 +66,16 @@ routes:
       path_prefix: "/"
     service: u-lb
 
+  - name: r-ratelimit
+    match:
+      host: "ratelimit.local"
+      path_prefix: "/"
+    service: u1
+    options:
+      rate_limit:
+        requestsPerSecond: 1
+        burst: 1
+
   # wildcard → u1, so /healthz works for any Host
   - name: r-any
     match:

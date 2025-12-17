@@ -1,6 +1,9 @@
 services:
   gateway:
-    image: ghcr.io/fabian4/gateway-homebrew-go:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    image: gateway-homebrew-go:local
     container_name: e2e-gateway
     ports:
       - "18080:8080"

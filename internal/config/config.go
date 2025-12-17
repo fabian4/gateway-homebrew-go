@@ -36,8 +36,9 @@ type rawConfig struct {
 		} `yaml:"match"`
 		Service string `yaml:"service"`
 		Options struct {
-			PreserveHost bool   `yaml:"preserve_host"`
-			HostRewrite  string `yaml:"host_rewrite"`
+			PreserveHost bool             `yaml:"preserve_host"`
+			HostRewrite  string           `yaml:"host_rewrite"`
+			RateLimit    *RateLimitConfig `yaml:"rate_limit"`
 		} `yaml:"options"`
 	} `yaml:"routes"`
 	Timeouts struct {
@@ -255,6 +256,7 @@ func Load(path string) (*Config, error) {
 			Service:      service,
 			PreserveHost: r.Options.PreserveHost,
 			HostRewrite:  strings.TrimSpace(r.Options.HostRewrite),
+			RateLimit:    r.Options.RateLimit,
 		}
 		routes = append(routes, rt)
 	}

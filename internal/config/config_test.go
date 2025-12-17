@@ -275,3 +275,40 @@ routes:
 		t.Errorf("ca_file: got %q, want %q", got, want)
 	}
 }
+
+func TestLoad_RateLimit(t *testing.T) {
+	yml := `
+services:
+  - name: s1
+    endpoints: ["http://e1:80"]
+routes:
+  - name: r-limited
+    match: { path_prefix: "/limit" }
+    service: s1
+    options:
+      rate_limit:
+        requestsPerSecond: 10
+        burst: 20
+`
+	fp := writeTmp(t, yml)
+	cfg, err := Load(fp)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+
+	if len(cfg.Routes) != 1 {
+		t.Fatalf("routes len: got %d, want 1", len(cfg.Routes))
+	}
+
+	rt := cfg.Routes[0]
+	if rt.RateLimit == nil {
+		t.Fatal("RateLimit is nil")
+	}
+
+	if rt.RateLimit.RequestsPerSecond != 10 {
+		t.Errorf("RequestsPerSecond: got %v, want 10", rt.RateLimit.RequestsPerSecond)
+	}
+	if rt.RateLimit.Burst != 20 {
+		t.Errorf("Burst: got %v, want 20", rt.RateLimit.Burst)
+	}
+}

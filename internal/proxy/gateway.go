@@ -18,6 +18,7 @@ import (
 
 	"github.com/fabian4/gateway-homebrew-go/internal/config"
 	"github.com/fabian4/gateway-homebrew-go/internal/metrics"
+	"github.com/fabian4/gateway-homebrew-go/internal/ratelimit"
 	"github.com/fabian4/gateway-homebrew-go/internal/transport"
 )
 
@@ -27,14 +28,16 @@ type GatewayState struct {
 	balancers       map[string]Balancer
 	UpstreamTimeout time.Duration
 	AccessLogConfig config.AccessLogConfig
+	RateLimitConfig ratelimit.Config
 }
 
 type Gateway struct {
-	stateMu    sync.RWMutex
-	state      *GatewayState
-	Transports *transport.Registry
-	AccessLog  io.Writer
-	Metrics    *metrics.Registry
+	stateMu     sync.RWMutex
+	state       *GatewayState
+	Transports  *transport.Registry
+	AccessLog   io.Writer
+	Metrics     *metrics.Registry
+	rateLimiter *ratelimit.Limiter
 }
 
 func NewGateway(rt *Table, svcs map[string]config.Service, f *transport.Registry, upstreamTimeout time.Duration, accessLog io.Writer, alc config.AccessLogConfig, m *metrics.Registry) *Gateway {
@@ -52,7 +55,7 @@ func NewGateway(rt *Table, svcs map[string]config.Service, f *transport.Registry
 		UpstreamTimeout: upstreamTimeout,
 		AccessLogConfig: alc,
 	}
-	return &Gateway{state: state, Transports: f, AccessLog: accessLog, Metrics: m}
+	return &Gateway{state: state, Transports: f, AccessLog: accessLog, Metrics: m, rateLimiter: ratelimit.NewLimiter()}
 }
 
 func (g *Gateway) UpdateState(rt *Table, svcs map[string]config.Service, upstreamTimeout time.Duration, alc config.AccessLogConfig) {
@@ -177,6 +180,21 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(lw, r)
 		return
 	}
+
+	// Apply rate limiting if configured for the route.
+	if route.RateLimit != nil {
+		rps := route.RateLimit.RequestsPerSecond
+		burst := route.RateLimit.Burst
+		if rps > 0 && burst > 0 {
+			// For simplicity, using route name as the key. Can be extended to client IP, user ID, etc.
+			if !g.rateLimiter.Allow(route.Name, rps, burst) {
+				log.Printf("Rate limit exceeded for route %q", route.Name)
+				http.Error(lw, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
+				return
+			}
+		}
+	}
+
 	serviceName = route.Service
 	routeName = route.Name
 	svc, ok := state.Services[route.Service]
